@@ -282,12 +282,12 @@ def train_val(model, train_loader, val_loader, no_label_loader, device, epochs, 
     plt.legend(["train", "val"])
     plt.show()
 
-# path = r"F:\pycharm\beike\classification\food_classification\food-11\training\labeled"
-# train_path = r"F:\pycharm\beike\classification\food_classification\food-11\training\labeled"
-# val_path = r"F:\pycharm\beike\classification\food_classification\food-11\validation"
-train_path = r"F:\pycharm\beike\classification\food_classification\food-11_sample\training\labeled"
-val_path = r"F:\pycharm\beike\classification\food_classification\food-11_sample\validation"
-no_label_path = r"F:\pycharm\beike\classification\food_classification\food-11_sample\training\unlabeled\00"
+# path = "food-11/training/labeled"
+train_path = "food-11/validation"
+val_path = "food-11/validation"
+# train_path = "food-11_sample/training/labeled"
+# val_path = "food-11_sample/validation"
+no_label_path = "food-11_sample/training/unlabeled/00"
 
 train_set = food_Dataset(train_path, "train")
 val_set = food_Dataset(val_path, "val")
