@@ -1,4 +1,4 @@
-# 食物识别系统 (Food Recognition System)
+# 🍽️ 食物识别系统 (Food Recognition System)
 
 一个基于深度学习的食物识别系统，支持多种经典CNN架构和先进的注意力机制，适用于食物分类任务。
 
@@ -9,6 +9,9 @@
 - **半监督学习**: 支持半监督学习，充分利用无标签数据
 - **可视化分析**: 提供Grad-CAM可视化，理解模型关注区域
 - **完整训练流程**: 包含数据预处理、模型训练、验证和测试
+- **实时进度显示**: 使用tqdm显示训练进度
+- **混合精度训练**: 支持AMP加速训练
+- **高级数据增强**: 随机擦除、颜色增强等策略
 
 ## 📁 项目结构
 
@@ -59,7 +62,7 @@ food_recognition/
 
 1. 克隆项目
 ```bash
-git clone https://github.com/yourusername/food_recognition.git
+git clone https://github.com/linhongyu510/food_recognition.git
 cd food_recognition
 ```
 
@@ -124,8 +127,9 @@ print(f"预测结果: {prediction}")
 
 ## 📊 数据集
 
-本项目使用Food-11数据集，包含11个食物类别：
+本项目支持多个数据集：
 
+### Food-11数据集 (11个类别)
 - 面包 (Bread)
 - 乳制品 (Dairy)
 - 甜点 (Dessert)
@@ -138,6 +142,9 @@ print(f"预测结果: {prediction}")
 - 汤 (Soup)
 - 蔬菜 (Vegetable)
 
+### Food-101数据集 (101个类别)
+包含101种不同食物的高质量图片，适合大规模食物识别任务。
+
 ## 🏗️ 模型架构
 
 ### 支持的模型
@@ -145,7 +152,7 @@ print(f"预测结果: {prediction}")
 1. **ResNet系列**: ResNet18, ResNet50
 2. **AlexNet**: 经典CNN架构
 3. **VGG**: VGG11, VGG16
-4. **EfficientNet**: EfficientNet-B0 + CBAM注意力机制
+4. **EfficientNet**: EfficientNet-B0/B4 + CBAM注意力机制
 5. **自定义模型**: 可扩展的模型架构
 
 ### 注意力机制
@@ -155,11 +162,12 @@ print(f"预测结果: {prediction}")
 
 ## 📈 性能指标
 
-| 模型 | 准确率 | 参数量 | 训练时间 |
-|------|--------|--------|----------|
-| ResNet18 | 85.2% | 11.7M | 2.5h |
-| EfficientNet-B0+CBAM | 87.8% | 5.3M | 3.2h |
-| AlexNet | 78.5% | 61.1M | 1.8h |
+| 模型 | 数据集 | 准确率 | 参数量 | 训练时间 |
+|------|--------|--------|--------|----------|
+| ResNet50+CBAM | Food-11 | 94.56% | 25.1M | 2.5h |
+| EfficientNet-B4+CBAM | Food-101 | 84.09% | 19.3M | 4.2h |
+| ResNet18 | Food-11 | 85.2% | 11.7M | 1.8h |
+| AlexNet | Food-11 | 78.5% | 61.1M | 1.2h |
 
 ## 🔬 算法原理
 
@@ -197,12 +205,12 @@ MIT License
 
 ## 📞 联系方式
 
-- 作者: [您的姓名]
+- 作者: linhongyu510
 - 邮箱: [您的邮箱]
-- 项目链接: [GitHub链接]
+- 项目链接: https://github.com/linhongyu510/food_recognition
 
 ## 🙏 致谢
 
 - PyTorch团队提供的深度学习框架
-- Food-11数据集提供者
+- Food-11和Food-101数据集提供者
 - 开源社区的贡献者们
