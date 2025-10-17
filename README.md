@@ -205,8 +205,8 @@ MIT License
 
 ## 📞 联系方式
 
-- 作者: linhongyu510
-- 邮箱: [您的邮箱]
+- 作者: 林宏宇
+- 邮箱: linhongyu510@gmail.com
 - 项目链接: https://github.com/linhongyu510/food_recognition
 
 ## 🙏 致谢
