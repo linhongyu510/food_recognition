@@ -1,0 +1,69 @@
+# 数据文件夹
+data/
+results*/
+checkpoints/
+logs/
+
+# Python缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 模型文件
+*.pth
+*.pkl
+*.h5
+*.hdf5
+
+# 日志文件
+*.log
+*.out
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 环境文件
+.env
+.venv/
+venv/
+env/
+
+# Jupyter Notebook检查点
+.ipynb_checkpoints/
+
+# 系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 训练结果图片
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+
+# 大文件
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# 配置文件（包含敏感信息）
+config.json
+secrets.json
