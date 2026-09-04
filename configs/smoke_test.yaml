@@ -1,0 +1,41 @@
+# Tiny config used by the smoke test and CI.
+# Trains SimpleConvNet on synthetic data for 2 epochs on CPU.
+# Pair with: python scripts/make_sample_data.py --output data/sample
+
+model_name: simple_cnn
+num_classes: 3
+use_pretrained: false
+
+train_dir: data/sample/training/labeled
+val_dir: data/sample/validation
+unlabeled_dir: data/sample/training/unlabeled
+
+image_size: 64
+batch_size: 4
+num_workers: 0
+use_autoaugment: false
+
+epochs: 2
+learning_rate: 0.001
+weight_decay: 0.0001
+scheduler: cosine
+warmup_epochs: 0
+
+device: cpu
+seed: 0
+use_amp: false
+val_every_n_epochs: 1
+
+output_dir: runs/smoke
+checkpoint_name: best.pt
+
+early_stopping:
+  enabled: false
+  patience: 2
+
+semi_supervised:
+  enabled: true
+  refresh_interval: 1
+  confidence_threshold: 0.30
+  activation_threshold: 0.0
+  max_ratio: 1.0

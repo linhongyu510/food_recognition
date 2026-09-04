@@ -1,143 +1,338 @@
-# 🍽️ 食物识别系统 (Food Recognition System)
+# Food Recognition
 
-一个基于深度学习的食物识别系统，支持多种数据集和模型架构，提供完整的训练、评估和可视化功能。
+Food image classification with PyTorch: a configurable training pipeline with
+CBAM attention, self-training on unlabelled data, and CLI tools for training,
+evaluation and inference.
 
-## ✨ 项目特色
+[![CI](https://github.com/linhongyu510/food_recognition/actions/workflows/ci.yml/badge.svg)](https://github.com/linhongyu510/food_recognition/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue)
+![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-- 🎯 **多数据集支持**: Food-11, Food-101
-- 🧠 **先进模型**: EfficientNet-B4 + CBAM, ResNet50 + CBAM
-- 📊 **实时进度显示**: tqdm进度条
-- ⚡ **混合精度训练**: AMP加速训练
-- 🔄 **高级数据增强**: 多种增强策略
-- 🛑 **早停机制**: 防止过拟合
-- 📈 **完整评估**: 准确率、精确率、召回率、F1分数
-- 🎨 **可视化分析**: 训练曲线、混淆矩阵、类别性能
-
-## 📊 项目结构
-
-```
-food_recognition/
-├── models/                 # 模型定义
-│   ├── __init__.py
-│   ├── resnet.py
-│   ├── alexnet.py
-│   ├── efficientnet_cbam.py
-│   └── custom_models.py
-├── data/                   # 数据处理
-│   ├── __init__.py
-│   ├── dataset.py
-│   ├── transforms.py
-│   └── utils.py
-├── training/               # 训练相关
-│   ├── __init__.py
-│   ├── trainer.py
-│   ├── losses.py
-│   └── metrics.py
-├── utils/                  # 工具函数
-│   ├── __init__.py
-│   ├── visualization.py
-│   ├── config.py
-│   └── utils.py
-├── examples/               # 示例脚本
-│   ├── train_basic.py
-│   ├── train_semi_supervised.py
-│   └── inference.py
-├── docs/                   # 文档
-│   ├── algorithm.md
-│   ├── model_architecture.md
-│   └── tutorial.md
-├── train_optimized.py      # 主要训练脚本
-├── train_food101_efficientnet_b4_optimized.py  # Food-101训练
-├── download_dataset.py     # 数据集下载
-├── requirements.txt        # 依赖包
-└── README.md              # 项目说明
-```
-
-## 🚀 快速开始
-
-### 1. 安装依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. 下载数据集
-
-```bash
-python download_dataset.py
-```
-
-### 3. 训练模型
-
-#### Food-11数据集训练
-```bash
-python train_optimized.py
-```
-
-#### Food-101数据集训练
-```bash
-python train_food101_efficientnet_b4_optimized.py
-```
-
-## 📊 性能指标
-
-| 数据集 | 模型 | 准确率 | 精确率 | 召回率 | F1分数 |
-|--------|------|--------|--------|--------|--------|
-| Food-11 | ResNet50+CBAM | 94.56% | 94.58% | 94.56% | 94.56% |
-| Food-101 | EfficientNet-B4+CBAM | 84.09% | 84.09% | 84.09% | 83.97% |
-
-## 🎯 主要功能
-
-### 模型架构
-- **EfficientNet-B4**: 高效的卷积神经网络
-- **ResNet50**: 残差网络架构
-- **CBAM**: 卷积块注意力模块
-- **混合精度训练**: 加速训练过程
-
-### 数据处理
-- **数据增强**: 旋转、翻转、颜色变换等
-- **标准化**: 图像预处理和归一化
-- **多数据集支持**: 灵活的数据加载器
-
-### 训练优化
-- **学习率调度**: 余弦退火、自适应调整
-- **早停机制**: 防止过拟合
-- **梯度裁剪**: 稳定训练过程
-- **实时监控**: tqdm进度显示
-
-## 📈 可视化功能
-
-- **训练曲线**: 损失和准确率变化
-- **混淆矩阵**: 分类结果分析
-- **类别性能**: 各类别详细指标
-- **Grad-CAM**: 注意力热力图
-
-## 🔧 技术栈
-
-- **深度学习**: PyTorch
-- **计算机视觉**: torchvision, PIL
-- **数据处理**: numpy, pandas
-- **可视化**: matplotlib, seaborn
-- **进度显示**: tqdm
-- **数据增强**: albumentations
-
-## 📞 联系方式
-
-- 作者: 林宏宇
-- 邮箱: linhongyu510@gmail.com
-- 项目链接: https://github.com/linhongyu510/food_recognition
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
-## 🙏 致谢
-
-- Food-11数据集
-- Food-101数据集
-- PyTorch社区
-- 所有贡献者
+> **Status.** The pipeline, CLI and 118-test suite are verified and run in CI on
+> every push. Benchmark accuracy on Food-11 / Food-101 has **not** yet been
+> re-measured for this codebase — see [Benchmarks](#benchmarks).
 
 ---
 
-**🎉 欢迎使用食物识别系统！如有问题，请提交Issue或联系作者。**
+## Contents
+
+- [Install](#install)
+- [Try it in 30 seconds](#try-it-in-30-seconds)
+- [Data layout](#data-layout)
+- [Training](#training)
+- [Evaluation and inference](#evaluation-and-inference)
+- [Python API](#python-api)
+- [Models](#models)
+- [Configuration](#configuration)
+- [Self-training](#self-training)
+- [Benchmarks](#benchmarks)
+- [Project layout](#project-layout)
+- [Development](#development)
+
+---
+
+## Install
+
+Requires Python 3.9+ and PyTorch 2.4+.
+
+```bash
+git clone https://github.com/linhongyu510/food_recognition.git
+cd food_recognition
+
+python -m venv .venv && source .venv/bin/activate
+
+# CPU-only torch (skips ~2GB of CUDA wheels). For GPU, follow pytorch.org.
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+pip install -e .
+```
+
+Installing exposes three commands: `food-recognition-train`,
+`food-recognition-eval` and `food-recognition-predict`.
+
+## Try it in 30 seconds
+
+No dataset download needed — this generates synthetic data and runs the full
+train → evaluate → predict loop on CPU:
+
+```bash
+python scripts/make_sample_data.py --output data/sample
+food-recognition-train --config configs/smoke_test.yaml
+```
+
+```
+device=cpu
+model=simple_cnn trainable_params=1,553,475
+train samples=24
+val samples=12
+epoch   1/2 | loss 1.0129 | acc 0.6667 | val_loss 0.1638 | val_acc 1.0000 | ... | <- best
+epoch   2/2 | loss 0.1960 | acc 0.9667 | val_loss 0.0116 | val_acc 1.0000 | pseudo 6 | ...
+
+best val accuracy : 1.0000 (epoch 1)
+best checkpoint   : runs/smoke/checkpoints/best.pt
+
+class         precision     recall         f1  support
+00               1.0000     1.0000     1.0000        4
+01               1.0000     1.0000     1.0000        4
+02               1.0000     1.0000     1.0000        4
+
+accuracy                               1.0000       12
+macro avg        1.0000     1.0000     1.0000       12
+weighted avg     1.0000     1.0000     1.0000       12
+```
+
+This toy task is deliberately trivial (three solid colours); it verifies the
+plumbing, not model quality.
+
+## Data layout
+
+Labelled splits use one sub-directory per class. The unlabelled pool is a
+**flat** directory:
+
+```
+data/food-11/
+├── training/
+│   ├── labeled/          # class sub-directories
+│   │   ├── 00/  01/  02/  ...  10/
+│   └── unlabeled/        # flat: images directly inside, no class dirs
+│       ├── 0001.jpg  0002.jpg  ...
+└── validation/
+    ├── 00/  01/  02/  ...  10/
+```
+
+Class directories named with digits are sorted **numerically**, so `10/` maps to
+index 10 rather than sorting between `1/` and `2/`. Any directory names work —
+`apple_pie/`, `bread/` — and the resolved names are stored in the checkpoint so
+predictions come back as readable labels.
+
+To download Food-11:
+
+```bash
+pip install -e ".[download]"
+python scripts/download_dataset.py
+```
+
+## Training
+
+```bash
+# Built-in configs
+food-recognition-train --config configs/food11_resnet18.yaml
+food-recognition-train --config configs/food11_efficientnet_cbam.yaml
+
+# Override any field from the command line
+food-recognition-train --config configs/food11_resnet18.yaml \
+    --model-name resnet50_cbam --epochs 40 --batch-size 64 --lr 1e-4
+
+# Or skip configs entirely
+food-recognition-train \
+    --model-name efficientnet_b0_cbam --num-classes 11 \
+    --train-dir data/food-11/training/labeled \
+    --val-dir data/food-11/validation \
+    --epochs 30 --device cuda
+```
+
+Each run writes to `output_dir`:
+
+```
+runs/food11_resnet18/
+├── checkpoints/
+│   ├── best.pt        # best validation accuracy
+│   └── last.pt        # most recent epoch
+├── history.json       # per-epoch loss/acc/LR/duration
+└── metrics.json       # best epoch: per-class P/R/F1 + confusion matrix
+```
+
+`--help` lists every flag. Relative paths in configs resolve against the
+current working directory, so run commands from the repository root.
+
+## Evaluation and inference
+
+```bash
+food-recognition-eval \
+    --checkpoint runs/food11_resnet18/checkpoints/best.pt \
+    --data-dir data/food-11/validation \
+    --json-out report.json
+```
+
+```bash
+# Single image
+food-recognition-predict --checkpoint runs/.../best.pt --input photo.jpg
+
+# Whole directory, top-5, saved as JSON
+food-recognition-predict --checkpoint runs/.../best.pt \
+    --input data/food-11/testing --topk 5 --json-out predictions.json
+```
+
+```
+photo.jpg
+  -> 07 (0.9412)  [07 0.941, 03 0.038, 01 0.011]
+```
+
+Checkpoints embed their architecture, image size and class names, so neither
+command needs to be told the model again.
+
+## Python API
+
+```python
+from food_recognition import TrainingConfig, train_model
+
+cfg = TrainingConfig(
+    model_name="efficientnet_b0_cbam",
+    num_classes=11,
+    train_dir="data/food-11/training/labeled",
+    val_dir="data/food-11/validation",
+    epochs=30,
+    batch_size=32,
+)
+summary = train_model(cfg)
+
+print(summary.best_accuracy, summary.best_epoch)
+print(summary.final_report.format_table())
+```
+
+```python
+from food_recognition import load_predictor
+
+predictor = load_predictor("runs/exp/checkpoints/best.pt")
+print(predictor.predict("photo.jpg").label)
+```
+
+Building blocks are importable directly — `CBAM`, `LabeledImageDataset`,
+`compute_metrics`, `Trainer`, `initialize_model`, `EarlyStopper`.
+
+## Models
+
+Pass any of these as `model_name` (29 total, `available_models()` lists them):
+
+| Family | Names |
+| --- | --- |
+| Baseline | `simple_cnn` |
+| ResNet | `resnet18`, `resnet34`, `resnet50`, `resnet101` |
+| EfficientNet | `efficientnet_b0` … `efficientnet_b4` |
+| Other | `alexnet`, `vgg11_bn`, `vgg16_bn`, `densenet121`, `squeezenet`, `googlenet`, `mobilenet_v3_large`, `convnext_tiny` |
+| **+ CBAM** | append `_cbam` to any ResNet / EfficientNet / DenseNet / ConvNeXt name |
+
+### CBAM
+
+[CBAM](https://arxiv.org/abs/1807.06521) (Woo et al., ECCV 2018) applies channel
+attention then spatial attention to the backbone's feature map:
+
+```
+backbone features → channel attention → spatial attention → pool → linear head
+```
+
+Channel attention pools with **both** average and max descriptors through a
+shared MLP, per the paper. The attention width is read from the backbone at
+build time, so `efficientnet_b4_cbam` correctly uses 1792 channels while
+`efficientnet_b0_cbam` uses 1280.
+
+## Configuration
+
+Shipped configs: `configs/food11_resnet18.yaml`,
+`configs/food11_efficientnet_cbam.yaml`, `configs/smoke_test.yaml`.
+
+| Group | Keys |
+| --- | --- |
+| Model | `model_name`, `num_classes`, `use_pretrained`, `linear_probe`, `dropout` |
+| Data | `train_dir`, `val_dir`, `unlabeled_dir`, `image_size`, `batch_size`, `num_workers`, `use_autoaugment`, `class_names` |
+| Optimisation | `epochs`, `learning_rate`, `weight_decay`, `label_smoothing`, `grad_clip_norm`, `scheduler`, `warmup_epochs` |
+| Runtime | `device`, `seed`, `use_amp`, `val_every_n_epochs`, `deterministic` |
+| Output | `output_dir`, `checkpoint_name`, `save_last` |
+| Nested | `early_stopping.*`, `semi_supervised.*` |
+
+`scheduler` accepts `none`, `cosine`, `step` or `plateau`. `device` accepts
+`auto` (CUDA → MPS → CPU), `cpu`, `cuda` or `mps`; an unavailable backend warns
+and falls back rather than crashing.
+
+Configs are validated before any data is loaded, and unknown keys are an error,
+so a typo is reported instead of silently ignored.
+
+## Self-training
+
+Optional pseudo-labelling on the unlabelled pool:
+
+```yaml
+semi_supervised:
+  enabled: true
+  activation_threshold: 0.7    # wait until val accuracy reaches this
+  confidence_threshold: 0.95   # keep predictions at least this confident
+  refresh_interval: 5          # regenerate every N epochs
+  max_ratio: 2.0               # cap pseudo-labels at 2x the labelled set
+```
+
+Only confident predictions are kept, and when the cap binds the
+highest-confidence samples win. Reported epoch metrics are weighted by sample
+count across the labelled and pseudo-labelled phases.
+
+## Benchmarks
+
+**No accuracy numbers are published for this codebase yet.**
+
+Earlier revisions of this README listed 94.56% on Food-11 and 84.09% on
+Food-101. Those figures could not be traced to any training script, log or
+checkpoint in this repository, and the architecture they named
+(EfficientNet-B4 + CBAM, Food-101) was never implemented here — the original
+experiments used EfficientNet-**B0** on Food-11. They have been removed rather
+than carried forward unverified.
+
+Reproducible benchmarks will be added here once measured, with the config,
+commit and hardware recorded alongside each number. To run your own:
+
+```bash
+food-recognition-train --config configs/food11_efficientnet_cbam.yaml
+cat runs/food11_effnet_cbam/metrics.json
+```
+
+## Project layout
+
+```
+src/food_recognition/     # the package
+├── config.py             # TrainingConfig + YAML loading and validation
+├── data.py               # datasets, transforms, dataloaders, pseudo-labelling
+├── models.py             # CBAM, model factory, 29 architectures
+├── training.py           # Trainer: loop, validation, early stopping, scheduling
+├── metrics.py            # accuracy, per-class P/R/F1, confusion matrix
+├── predict.py            # Predictor and checkpoint loading
+├── utils.py              # seeding, devices, early stopping, checkpoint I/O
+└── cli.py                # train / eval / predict entry points
+
+configs/                  # YAML configs
+scripts/                  # make_sample_data.py, download_dataset.py
+tests/                    # 118 tests
+docs/                     # thesis notes, reference PDF
+experiments/              # object detection example
+├── legacy/               # original single-file experiment scripts
+legacy/model_utils/       # original helper modules
+```
+
+`experiments/legacy/` and `legacy/` preserve the original research scripts
+verbatim for reference. They are not imported by the package, are excluded from
+linting, and still contain hard-coded `cuda:0` device assignments.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+
+pytest -q                                    # 118 tests
+pytest -q --cov=food_recognition             # with coverage
+ruff check src tests scripts                 # lint
+```
+
+Tests run the real training loop on generated data rather than mocks, and cover
+the regressions that motivated this refactor: numeric class-directory ordering,
+flat unlabelled directories, config path resolution, and metric correctness
+against hand-computed values.
+
+CI runs the suite on Python 3.10 / 3.11 / 3.12, plus an end-to-end smoke test
+and a distribution build.
+
+## Citation
+
+The `docs/` directory holds the original thesis notes and reference PDF that
+this project accompanied.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

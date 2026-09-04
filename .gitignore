@@ -10,8 +10,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
@@ -21,21 +19,25 @@ wheels/
 *.egg
 MANIFEST
 
-# PyTorch
-*.pth
-*.pt
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Environment
+# Environments
 .env
 .venv
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
+
+# Testing / tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints
 
 # IDE
 .vscode/
@@ -46,29 +48,26 @@ venv.bak/
 
 # OS
 .DS_Store
-.DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
 Thumbs.db
 
-# Results and logs
+# Model weights and checkpoints
+*.pth
+*.pt
+*.onnx
+*.ckpt
+
+# Training outputs
+runs/
 results/
-results_advanced/
-results_food101/
-results_food101_optimized/
-results_optimized/
 logs/
 checkpoints/
 
-# Data
-data/food11/
-data/food101/
-*.jpg
-*.png
-*.jpeg
+# Datasets
+data/
+!data/.gitkeep
 
-# Temporary files
-*.tmp
-*.temp
+# Note: docs/ intentionally tracks acc.png and the reference PDF, so image
+# formats are NOT globally ignored here.
