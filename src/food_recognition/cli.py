@@ -8,8 +8,8 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Optional, Sequence
 
 from .config import TrainingConfig, load_training_config
 from .metrics import compute_metrics
@@ -104,7 +104,7 @@ def _apply_overrides(cfg: TrainingConfig, args: argparse.Namespace) -> TrainingC
     return cfg
 
 
-def train_main(argv: Optional[Sequence[str]] = None) -> int:
+def train_main(argv: Sequence[str] | None = None) -> int:
     """Entry point for ``food-recognition-train``."""
     args = _build_train_parser().parse_args(argv)
     configure_logging(logging.WARNING if args.quiet else logging.INFO)
@@ -163,7 +163,7 @@ def _build_eval_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def eval_main(argv: Optional[Sequence[str]] = None) -> int:
+def eval_main(argv: Sequence[str] | None = None) -> int:
     """Entry point for ``food-recognition-eval``."""
     args = _build_eval_parser().parse_args(argv)
     configure_logging(logging.WARNING if args.quiet else logging.INFO)
@@ -197,8 +197,8 @@ def eval_main(argv: Optional[Sequence[str]] = None) -> int:
     )
 
     num_classes = len(predictor.classes) if predictor.classes else len(dataset.classes)
-    preds: List[torch.Tensor] = []
-    targets: List[torch.Tensor] = []
+    preds: list[torch.Tensor] = []
+    targets: list[torch.Tensor] = []
 
     with torch.no_grad():
         for images, labels in loader:
@@ -240,7 +240,7 @@ def _build_predict_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def predict_main(argv: Optional[Sequence[str]] = None) -> int:
+def predict_main(argv: Sequence[str] | None = None) -> int:
     """Entry point for ``food-recognition-predict``."""
     args = _build_predict_parser().parse_args(argv)
     configure_logging(logging.WARNING if args.quiet else logging.INFO)

@@ -10,8 +10,10 @@ pip install -e ".[dev]"
 
 ## Before opening a pull request
 
+Run the same checks CI runs, in the same order:
+
 ```bash
-ruff check src tests scripts
+ruff check src tests scripts     # exactly what CI runs - no extra --select flags
 pytest -q
 
 # End-to-end check
@@ -20,6 +22,10 @@ food-recognition-train --config configs/smoke_test.yaml
 ```
 
 CI runs the same steps on Python 3.10 / 3.11 / 3.12.
+
+> Run `ruff check src tests scripts` with **no** extra `--select` flags. Narrowing
+> the rule set locally hides violations that CI will still fail on; the rule set
+> lives in `pyproject.toml` and is the single source of truth.
 
 ## Conventions
 

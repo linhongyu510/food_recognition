@@ -6,8 +6,8 @@ support that did not exist anywhere in the codebase. This module provides it.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
 
 import torch
 
@@ -52,17 +52,17 @@ class ClassificationReport:
     weighted_precision: float
     weighted_recall: float
     weighted_f1: float
-    per_class_precision: List[float]
-    per_class_recall: List[float]
-    per_class_f1: List[float]
-    support: List[int]
-    matrix: List[List[int]]
-    class_names: Optional[List[str]] = None
-    loss: Optional[float] = None
-    extra: Dict[str, float] = field(default_factory=dict)
+    per_class_precision: list[float]
+    per_class_recall: list[float]
+    per_class_f1: list[float]
+    support: list[int]
+    matrix: list[list[int]]
+    class_names: list[str] | None = None
+    loss: float | None = None
+    extra: dict[str, float] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, object]:
-        data: Dict[str, object] = {
+    def to_dict(self) -> dict[str, object]:
+        data: dict[str, object] = {
             "accuracy": self.accuracy,
             "macro_precision": self.macro_precision,
             "macro_recall": self.macro_recall,
@@ -144,8 +144,8 @@ def compute_metrics(
     preds: torch.Tensor,
     num_classes: int,
     *,
-    class_names: Optional[Sequence[str]] = None,
-    loss: Optional[float] = None,
+    class_names: Sequence[str] | None = None,
+    loss: float | None = None,
 ) -> ClassificationReport:
     """Compute accuracy, per-class and averaged precision/recall/F1."""
     matrix = confusion_matrix(targets, preds, num_classes)

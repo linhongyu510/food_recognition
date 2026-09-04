@@ -8,7 +8,7 @@ import os
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -55,7 +55,7 @@ def seed_everything(seed: int, deterministic: bool = True) -> None:
     torch.backends.cudnn.benchmark = not deterministic
 
 
-def resolve_device(device: Optional[str] = None) -> torch.device:
+def resolve_device(device: str | None = None) -> torch.device:
     """Resolve a device string to an available :class:`torch.device`.
 
     ``"auto"`` prefers CUDA, then Apple MPS, then CPU. An explicit request for
@@ -104,7 +104,7 @@ class EarlyStopper:
     min_delta: float = 0.0
     mode: str = "max"
 
-    best: Optional[float] = None
+    best: float | None = None
     best_epoch: int = 0
     counter: int = 0
     should_stop: bool = False
@@ -141,10 +141,10 @@ def save_checkpoint(
     model: torch.nn.Module,
     *,
     epoch: int,
-    metrics: Optional[Dict[str, Any]] = None,
-    config: Optional[Dict[str, Any]] = None,
-    optimizer: Optional[torch.optim.Optimizer] = None,
-    classes: Optional[list[str]] = None,
+    metrics: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
+    optimizer: torch.optim.Optimizer | None = None,
+    classes: list[str] | None = None,
 ) -> Path:
     """Save a self-describing checkpoint.
 
@@ -154,7 +154,7 @@ def save_checkpoint(
     path = Path(path)
     ensure_dir(path.parent)
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "model_state": model.state_dict(),
         "epoch": epoch,
         "metrics": metrics or {},
@@ -168,7 +168,7 @@ def save_checkpoint(
     return path
 
 
-def load_checkpoint(path: Path | str, map_location: Any = "cpu") -> Dict[str, Any]:
+def load_checkpoint(path: Path | str, map_location: Any = "cpu") -> dict[str, Any]:
     """Load a checkpoint produced by :func:`save_checkpoint`."""
     path = Path(path)
     if not path.exists():

@@ -6,7 +6,6 @@ import logging
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -46,13 +45,13 @@ class EpochRecord:
     train_acc: float
     learning_rate: float
     duration_sec: float
-    val_loss: Optional[float] = None
-    val_acc: Optional[float] = None
-    val_macro_f1: Optional[float] = None
+    val_loss: float | None = None
+    val_acc: float | None = None
+    val_macro_f1: float | None = None
     pseudo_samples: int = 0
     is_best: bool = False
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
@@ -60,16 +59,16 @@ class EpochRecord:
 class TrainingSummary:
     """Result of a training run."""
 
-    history: List[EpochRecord] = field(default_factory=list)
-    best_checkpoint: Optional[Path] = None
+    history: list[EpochRecord] = field(default_factory=list)
+    best_checkpoint: Path | None = None
     best_accuracy: float = 0.0
     best_epoch: int = 0
-    final_report: Optional[ClassificationReport] = None
+    final_report: ClassificationReport | None = None
     total_duration_sec: float = 0.0
     stopped_early: bool = False
-    classes: Optional[List[str]] = None
+    classes: list[str] | None = None
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "best_accuracy": self.best_accuracy,
             "best_epoch": self.best_epoch,
@@ -84,7 +83,7 @@ class TrainingSummary:
 
 def _build_scheduler(
     cfg: TrainingConfig, optimizer: torch.optim.Optimizer
-) -> Optional[torch.optim.lr_scheduler.LRScheduler]:
+) -> torch.optim.lr_scheduler.LRScheduler | None:
     """Create the LR scheduler named by ``cfg.scheduler``."""
     remaining = max(cfg.epochs - cfg.warmup_epochs, 1)
 
@@ -106,7 +105,7 @@ def _build_scheduler(
 class Trainer:
     """Coordinates data, model and the optimisation loop."""
 
-    def __init__(self, cfg: TrainingConfig, bundle: Optional[DataBundle] = None) -> None:
+    def __init__(self, cfg: TrainingConfig, bundle: DataBundle | None = None) -> None:
         cfg.validate()
         self.cfg = cfg
 
@@ -150,7 +149,7 @@ class Trainer:
         self.train_transform = build_transform(
             cfg.image_size, is_train=True, use_autoaugment=cfg.use_autoaugment
         )
-        self.pseudo_loader: Optional[DataLoader] = None
+        self.pseudo_loader: DataLoader | None = None
         self.summary = TrainingSummary(classes=self.classes)
 
         ensure_dir(cfg.output_dir)
@@ -191,9 +190,9 @@ class Trainer:
                 train_loss = (train_loss * n_lab + p_loss * pseudo_samples) / total
                 train_acc = (train_acc * n_lab + p_acc * pseudo_samples) / total
 
-            val_loss: Optional[float] = None
-            val_acc: Optional[float] = None
-            val_f1: Optional[float] = None
+            val_loss: float | None = None
+            val_acc: float | None = None
+            val_f1: float | None = None
             is_best = False
 
             should_validate = self.bundle.val is not None and (
@@ -274,7 +273,7 @@ class Trainer:
         for group in self.optimizer.param_groups:
             group["lr"] = self.cfg.learning_rate * scale
 
-    def _step_scheduler(self, epoch: int, val_acc: Optional[float]) -> None:
+    def _step_scheduler(self, epoch: int, val_acc: float | None) -> None:
         if self.scheduler is None or epoch <= self.cfg.warmup_epochs:
             return
         if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
@@ -283,7 +282,7 @@ class Trainer:
         else:
             self.scheduler.step()
 
-    def _train_one_epoch(self, loader: DataLoader) -> Tuple[float, float]:
+    def _train_one_epoch(self, loader: DataLoader) -> tuple[float, float]:
         self.model.train()
         running_loss = 0.0
         correct = 0
@@ -329,7 +328,7 @@ class Trainer:
         return running_loss / seen, correct / seen
 
     @torch.no_grad()
-    def evaluate(self, loader: Optional[DataLoader] = None) -> ClassificationReport:
+    def evaluate(self, loader: DataLoader | None = None) -> ClassificationReport:
         """Evaluate on ``loader`` (defaults to the validation loader)."""
         loader = loader if loader is not None else self.bundle.val
         if loader is None:
@@ -338,8 +337,8 @@ class Trainer:
         self.model.eval()
         total_loss = 0.0
         seen = 0
-        all_preds: List[torch.Tensor] = []
-        all_targets: List[torch.Tensor] = []
+        all_preds: list[torch.Tensor] = []
+        all_targets: list[torch.Tensor] = []
 
         for images, labels in loader:
             images = images.to(self.device, non_blocking=True)
@@ -393,11 +392,11 @@ class Trainer:
             self.pseudo_loader = None
             return
 
-        loader_kwargs = dict(
-            batch_size=self.cfg.batch_size,
-            num_workers=self.cfg.num_workers,
-            pin_memory=torch.cuda.is_available(),
-        )
+        loader_kwargs = {
+            "batch_size": self.cfg.batch_size,
+            "num_workers": self.cfg.num_workers,
+            "pin_memory": torch.cuda.is_available(),
+        }
         if self.cfg.num_workers > 0:
             loader_kwargs["persistent_workers"] = True
 

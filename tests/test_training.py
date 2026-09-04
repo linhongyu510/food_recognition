@@ -23,23 +23,23 @@ from food_recognition.utils import EarlyStopper, load_checkpoint
 
 
 def _tiny_cfg(sample_dataset: Path, output: Path, **kwargs) -> TrainingConfig:
-    params = dict(
-        model_name="simple_cnn",
-        num_classes=3,
-        use_pretrained=False,
-        train_dir=sample_dataset / "training/labeled",
-        val_dir=sample_dataset / "validation",
-        unlabeled_dir=None,
-        image_size=32,
-        batch_size=4,
-        num_workers=0,
-        epochs=2,
-        learning_rate=1e-3,
-        device="cpu",
-        use_amp=False,
-        output_dir=output,
-        early_stopping=EarlyStoppingConfig(enabled=False),
-    )
+    params = {
+        "model_name": "simple_cnn",
+        "num_classes": 3,
+        "use_pretrained": False,
+        "train_dir": sample_dataset / "training/labeled",
+        "val_dir": sample_dataset / "validation",
+        "unlabeled_dir": None,
+        "image_size": 32,
+        "batch_size": 4,
+        "num_workers": 0,
+        "epochs": 2,
+        "learning_rate": 1e-3,
+        "device": "cpu",
+        "use_amp": False,
+        "output_dir": output,
+        "early_stopping": EarlyStoppingConfig(enabled=False),
+    }
     params.update(kwargs)
     return TrainingConfig(**params)
 

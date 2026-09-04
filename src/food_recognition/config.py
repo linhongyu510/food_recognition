@@ -7,9 +7,10 @@ built in Python or loaded from YAML via :func:`load_training_config`.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional
+from typing import Any
 
 import yaml
 
@@ -22,7 +23,7 @@ __all__ = [
 ]
 
 
-def _coerce_path(value: Any) -> Optional[Path]:
+def _coerce_path(value: Any) -> Path | None:
     if value is None:
         return None
     return Path(value).expanduser()
@@ -88,11 +89,11 @@ class TrainingConfig:
 
     # --- data ---
     train_dir: Path = field(default_factory=lambda: Path("data/food-11/training/labeled"))
-    val_dir: Optional[Path] = field(
+    val_dir: Path | None = field(
         default_factory=lambda: Path("data/food-11/validation")
     )
-    unlabeled_dir: Optional[Path] = None
-    class_names: Optional[list[str]] = None
+    unlabeled_dir: Path | None = None
+    class_names: list[str] | None = None
     image_size: int = 224
     batch_size: int = 32
     num_workers: int = 4
@@ -103,7 +104,7 @@ class TrainingConfig:
     learning_rate: float = 1e-4
     weight_decay: float = 1e-4
     label_smoothing: float = 0.0
-    grad_clip_norm: Optional[float] = None
+    grad_clip_norm: float | None = None
     scheduler: str = "cosine"  # one of: none | cosine | step | plateau
     scheduler_step_size: int = 10
     scheduler_gamma: float = 0.1
@@ -201,7 +202,7 @@ class TrainingConfig:
         self.early_stopping.validate()
         self.semi_supervised.validate()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise to plain types suitable for YAML/JSON."""
 
         def _convert(value: Any) -> Any:

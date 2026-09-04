@@ -7,9 +7,9 @@ predictor can be restored from a checkpoint alone.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
 
@@ -30,9 +30,9 @@ class Prediction:
     label_index: int
     label: str
     confidence: float
-    topk: List[Tuple[str, float]]
+    topk: list[tuple[str, float]]
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "path": self.path,
             "label_index": self.label_index,
@@ -49,9 +49,9 @@ class Predictor:
         self,
         model: torch.nn.Module,
         *,
-        classes: Optional[Sequence[str]] = None,
+        classes: Sequence[str] | None = None,
         image_size: int = 224,
-        device: Optional[str] = None,
+        device: str | None = None,
     ) -> None:
         self.device = resolve_device(device)
         self.model = model.to(self.device).eval()
@@ -67,7 +67,7 @@ class Predictor:
     @torch.no_grad()
     def predict_batch(
         self, paths: Sequence[Path | str], topk: int = 3
-    ) -> List[Prediction]:
+    ) -> list[Prediction]:
         """Predict a batch of image paths in a single forward pass."""
         if not paths:
             return []
@@ -80,7 +80,7 @@ class Predictor:
         k = min(topk, probs.size(1))
         top_probs, top_idx = probs.topk(k, dim=1)
 
-        results: List[Prediction] = []
+        results: list[Prediction] = []
         for row, (path, p_row, i_row) in enumerate(zip(paths, top_probs, top_idx)):
             del row
             best_index = int(i_row[0].item())
@@ -109,7 +109,7 @@ class Predictor:
         topk: int = 3,
         batch_size: int = 32,
         recursive: bool = True,
-    ) -> List[Prediction]:
+    ) -> list[Prediction]:
         """Predict every image under ``directory``."""
         directory = Path(directory)
         if not directory.exists():
@@ -123,7 +123,7 @@ class Predictor:
         if not paths:
             raise ValueError(f"no images found under {directory}")
 
-        results: List[Prediction] = []
+        results: list[Prediction] = []
         for start in range(0, len(paths), batch_size):
             results.extend(self.predict_batch(paths[start : start + batch_size], topk))
         return results
@@ -132,10 +132,10 @@ class Predictor:
 def load_predictor(
     checkpoint: Path | str,
     *,
-    device: Optional[str] = None,
-    model_name: Optional[str] = None,
-    num_classes: Optional[int] = None,
-    image_size: Optional[int] = None,
+    device: str | None = None,
+    model_name: str | None = None,
+    num_classes: int | None = None,
+    image_size: int | None = None,
 ) -> Predictor:
     """Rebuild a :class:`Predictor` from a checkpoint.
 

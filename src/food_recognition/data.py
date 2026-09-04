@@ -13,9 +13,10 @@ Handles the two directory layouts that appear in this project:
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Callable
 
 import torch
 from PIL import Image
@@ -63,7 +64,7 @@ def build_transform(
     256/224) which preserves aspect ratio, instead of the squashing
     ``Resize((H, W))`` used by some of the legacy scripts.
     """
-    ops: List[Callable] = []
+    ops: list[Callable] = []
 
     if is_train:
         ops.append(transforms.RandomResizedCrop(image_size))
@@ -81,7 +82,7 @@ def build_transform(
     return transforms.Compose(ops)
 
 
-def _sorted_class_dirs(root: Path) -> List[Path]:
+def _sorted_class_dirs(root: Path) -> list[Path]:
     """Return class sub-directories, numeric names sorted numerically."""
     dirs = [d for d in root.iterdir() if d.is_dir() and not d.name.startswith(".")]
     if not dirs:
@@ -91,7 +92,7 @@ def _sorted_class_dirs(root: Path) -> List[Path]:
     return sorted(dirs, key=lambda d: d.name)
 
 
-def _list_images(directory: Path) -> List[Path]:
+def _list_images(directory: Path) -> list[Path]:
     return sorted(
         p
         for p in directory.iterdir()
@@ -119,7 +120,7 @@ class LabeledImageDataset(Dataset):
         self,
         root: Path | str,
         *,
-        transform: Optional[Callable] = None,
+        transform: Callable | None = None,
         return_path: bool = False,
     ) -> None:
         self.root = Path(root)
@@ -138,10 +139,10 @@ class LabeledImageDataset(Dataset):
                 "Labelled data must be organised as <root>/<class>/<image>."
             )
 
-        self.classes: List[str] = [d.name for d in class_dirs]
+        self.classes: list[str] = [d.name for d in class_dirs]
         self.class_to_idx = {name: i for i, name in enumerate(self.classes)}
 
-        samples: List[Tuple[Path, int]] = []
+        samples: list[tuple[Path, int]] = []
         for index, directory in enumerate(class_dirs):
             files = _list_images(directory)
             if not files:
@@ -175,7 +176,7 @@ class UnlabeledImageDataset(Dataset):
         self,
         root: Path | str,
         *,
-        transform: Optional[Callable] = None,
+        transform: Callable | None = None,
         recursive: bool = True,
     ) -> None:
         self.root = Path(root)
@@ -195,7 +196,7 @@ class UnlabeledImageDataset(Dataset):
 
         if not paths:
             raise ValueError(f"no images found under {self.root}")
-        self.samples: List[Path] = paths
+        self.samples: list[Path] = paths
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -213,8 +214,8 @@ class PseudoLabeledDataset(Dataset):
 
     def __init__(
         self,
-        samples: Sequence[Tuple[str, int]],
-        transform: Optional[Callable] = None,
+        samples: Sequence[tuple[str, int]],
+        transform: Callable | None = None,
     ) -> None:
         self.samples = list(samples)
         self.transform = transform
@@ -238,9 +239,9 @@ class DataBundle:
     """Dataloaders plus the resolved class names."""
 
     train: DataLoader
-    val: Optional[DataLoader] = None
-    unlabeled: Optional[DataLoader] = None
-    classes: Optional[List[str]] = None
+    val: DataLoader | None = None
+    unlabeled: DataLoader | None = None
+    classes: list[str] | None = None
 
     @property
     def num_train_samples(self) -> int:
@@ -270,11 +271,11 @@ def create_dataloaders(cfg: TrainingConfig) -> DataBundle:
         )
 
     # persistent_workers requires num_workers > 0
-    loader_kwargs = dict(
-        batch_size=cfg.batch_size,
-        num_workers=cfg.num_workers,
-        pin_memory=torch.cuda.is_available(),
-    )
+    loader_kwargs = {
+        "batch_size": cfg.batch_size,
+        "num_workers": cfg.num_workers,
+        "pin_memory": torch.cuda.is_available(),
+    }
     if cfg.num_workers > 0:
         loader_kwargs["persistent_workers"] = True
 
@@ -282,7 +283,7 @@ def create_dataloaders(cfg: TrainingConfig) -> DataBundle:
         train_dataset, shuffle=True, drop_last=False, **loader_kwargs
     )
 
-    val_loader: Optional[DataLoader] = None
+    val_loader: DataLoader | None = None
     if cfg.val_dir is not None:
         if cfg.val_dir.exists():
             val_dataset = LabeledImageDataset(cfg.val_dir, transform=eval_transform)
@@ -296,7 +297,7 @@ def create_dataloaders(cfg: TrainingConfig) -> DataBundle:
         else:
             logger.warning("val_dir does not exist, skipping validation: %s", cfg.val_dir)
 
-    unlabeled_loader: Optional[DataLoader] = None
+    unlabeled_loader: DataLoader | None = None
     if cfg.unlabeled_dir is not None:
         if cfg.unlabeled_dir.exists():
             unlabeled_dataset = UnlabeledImageDataset(
@@ -326,14 +327,14 @@ def generate_pseudo_labels(
     loader: DataLoader,
     device: torch.device,
     confidence_threshold: float,
-    max_samples: Optional[int] = None,
-) -> List[Tuple[str, int]]:
+    max_samples: int | None = None,
+) -> list[tuple[str, int]]:
     """Predict labels for unlabelled data, keeping only confident predictions.
 
     When ``max_samples`` is set, the highest-confidence predictions are kept.
     """
     model.eval()
-    scored: List[Tuple[float, str, int]] = []
+    scored: list[tuple[float, str, int]] = []
 
     for images, paths in loader:
         images = images.to(device, non_blocking=True)

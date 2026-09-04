@@ -8,8 +8,6 @@ every EfficientNet / ResNet variant works.
 
 from __future__ import annotations
 
-from typing import Dict, Tuple
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -239,7 +237,7 @@ def _freeze_except_head(model: nn.Module) -> None:
 
 
 # name -> (torchvision builder, default input size)
-_TORCHVISION_MODELS: Dict[str, Tuple[str, int]] = {
+_TORCHVISION_MODELS: dict[str, tuple[str, int]] = {
     "resnet18": ("resnet18", 224),
     "resnet34": ("resnet34", 224),
     "resnet50": ("resnet50", 224),
@@ -289,7 +287,7 @@ def initialize_model(
     linear_probe: bool = False,
     use_pretrained: bool = True,
     dropout: float = 0.0,
-) -> Tuple[nn.Module, int]:
+) -> tuple[nn.Module, int]:
     """Build a model by name.
 
     Returns ``(model, recommended_input_size)``.
