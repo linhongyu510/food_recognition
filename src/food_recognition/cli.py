@@ -1,6 +1,7 @@
 """Console entry points: train, eval, predict.
 
-Installed as ``food-recognition-train`` / ``-eval`` / ``-predict``.
+Installed as ``food-recognition-train`` / ``-eval`` / ``-predict`` /
+``-gradcam``.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from .metrics import compute_metrics
 from .models import available_models
 from .utils import configure_logging, write_json
 
-__all__ = ["train_main", "eval_main", "predict_main"]
+__all__ = ["train_main", "eval_main", "predict_main", "gradcam_main"]
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +276,125 @@ def predict_main(argv: Sequence[str] | None = None) -> int:
     if args.json_out:
         write_json(args.json_out, [item.to_dict() for item in results])
         print(f"\npredictions written to {args.json_out}")
+    return 0
+
+
+# ----------------------------------------------------------------------------
+# gradcam
+# ----------------------------------------------------------------------------
+def _build_gradcam_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="food-recognition-gradcam",
+        description="Save a Grad-CAM attention overlay for an image or directory.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--checkpoint", type=Path, required=True)
+    parser.add_argument("--input", type=Path, required=True, help="Image or directory.")
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path("gradcam"),
+        help="Where to write the overlay PNGs.",
+    )
+    parser.add_argument(
+        "--class-index", type=int,
+        help="Explain this class instead of the predicted one.",
+    )
+    parser.add_argument(
+        "--alpha", type=float, default=0.5,
+        help="Heatmap opacity, 0-1.",
+    )
+    parser.add_argument(
+        "--side-by-side", action="store_true",
+        help="Save the original and overlay together in one image.",
+    )
+    parser.add_argument("--device", default="auto")
+    parser.add_argument("--quiet", action="store_true")
+    return parser
+
+
+def gradcam_main(argv: Sequence[str] | None = None) -> int:
+    """Entry point for ``food-recognition-gradcam``."""
+    args = _build_gradcam_parser().parse_args(argv)
+    configure_logging(logging.WARNING if args.quiet else logging.INFO)
+
+    from PIL import Image
+
+    from .data import IMAGE_EXTENSIONS
+    from .gradcam import GradCAM, overlay_heatmap
+    from .predict import load_predictor
+    from .utils import ensure_dir
+
+    if not args.input.exists():
+        logger.error("input not found: %s", args.input)
+        return 1
+    if not 0.0 <= args.alpha <= 1.0:
+        logger.error("--alpha must be in [0, 1], got %s", args.alpha)
+        return 2
+
+    try:
+        predictor = load_predictor(args.checkpoint, device=args.device)
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        logger.error("failed to load checkpoint: %s", exc)
+        return 1
+
+    if args.input.is_dir():
+        paths = sorted(
+            p for p in args.input.rglob("*")
+            if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS
+        )
+        if not paths:
+            logger.error("no images found under %s", args.input)
+            return 1
+    else:
+        paths = [args.input]
+
+    try:
+        cam = GradCAM(
+            predictor.model,
+            classes=predictor.classes,
+            device=predictor.device,
+        )
+    except RuntimeError as exc:
+        logger.error("cannot set up Grad-CAM: %s", exc)
+        return 1
+
+    output_dir = ensure_dir(args.output_dir)
+    root = args.input if args.input.is_dir() else args.input.parent
+
+    for path in paths:
+        try:
+            result, display = cam.generate_from_path(
+                path,
+                image_size=predictor.image_size,
+                class_index=args.class_index,
+            )
+        except (ValueError, RuntimeError, OSError) as exc:
+            logger.error("Grad-CAM failed for %s: %s", path, exc)
+            return 1
+
+        overlay = overlay_heatmap(display, result.heatmap, alpha=args.alpha)
+
+        if args.side_by_side:
+            combined = Image.new("RGB", (display.width * 2, display.height))
+            combined.paste(display, (0, 0))
+            combined.paste(overlay, (display.width, 0))
+            overlay = combined
+
+        # Mirror the input's sub-directories. Dataset folders reuse the same
+        # file names in every class directory (00/000.jpg, 01/000.jpg, ...), so
+        # a flat output would silently overwrite all but the last image.
+        try:
+            relative = path.relative_to(root)
+        except ValueError:  # pragma: no cover - path is always under root
+            relative = Path(path.name)
+        out_path = output_dir / relative.parent / f"{path.stem}_gradcam.png"
+        ensure_dir(out_path.parent)
+
+        overlay.save(out_path)
+        print(
+            f"{path}\n  -> {result.class_name} "
+            f"({result.confidence:.4f})  saved {out_path}"
+        )
+
     return 0
 
 

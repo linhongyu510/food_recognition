@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from food_recognition.cli import eval_main, predict_main, train_main
+from food_recognition.cli import eval_main, gradcam_main, predict_main, train_main
 
 
 def _write_config(path: Path, dataset: Path, output: Path, **extra) -> Path:
@@ -223,9 +223,159 @@ def test_predict_cli_missing_input_returns_1(sample_dataset: Path, tmp_path: Pat
 
 
 # ----------------------------------------------------------------------------
+# gradcam
+# ----------------------------------------------------------------------------
+def test_gradcam_cli_writes_overlay(sample_dataset: Path, tmp_path: Path, capsys):
+    from PIL import Image
+
+    config = _write_config(tmp_path / "c.yaml", sample_dataset, tmp_path / "run")
+    train_main(["--config", str(config)])
+    capsys.readouterr()
+
+    image = next((sample_dataset / "validation/00").glob("*.jpg"))
+    out_dir = tmp_path / "cams"
+    code = gradcam_main(
+        [
+            "--checkpoint", str(tmp_path / "run/checkpoints/best.pt"),
+            "--input", str(image),
+            "--output-dir", str(out_dir),
+        ]
+    )
+    assert code == 0
+
+    written = list(out_dir.glob("*_gradcam.png"))
+    assert len(written) == 1
+    with Image.open(written[0]) as img:
+        assert img.size == (32, 32)  # matches the config's image_size
+
+
+def test_gradcam_cli_side_by_side_doubles_width(
+    sample_dataset: Path, tmp_path: Path, capsys
+):
+    from PIL import Image
+
+    config = _write_config(tmp_path / "c.yaml", sample_dataset, tmp_path / "run")
+    train_main(["--config", str(config)])
+    capsys.readouterr()
+
+    image = next((sample_dataset / "validation/00").glob("*.jpg"))
+    out_dir = tmp_path / "cams"
+    code = gradcam_main(
+        [
+            "--checkpoint", str(tmp_path / "run/checkpoints/best.pt"),
+            "--input", str(image),
+            "--output-dir", str(out_dir),
+            "--side-by-side",
+        ]
+    )
+    assert code == 0
+
+    with Image.open(next(out_dir.glob("*_gradcam.png"))) as img:
+        assert img.size == (64, 32)
+
+
+def test_gradcam_cli_processes_directory(sample_dataset: Path, tmp_path: Path, capsys):
+    config = _write_config(tmp_path / "c.yaml", sample_dataset, tmp_path / "run")
+    train_main(["--config", str(config)])
+    capsys.readouterr()
+
+    out_dir = tmp_path / "cams"
+    code = gradcam_main(
+        [
+            "--checkpoint", str(tmp_path / "run/checkpoints/best.pt"),
+            "--input", str(sample_dataset / "training/unlabeled"),
+            "--output-dir", str(out_dir),
+        ]
+    )
+    assert code == 0
+    assert len(list(out_dir.glob("*_gradcam.png"))) == 4
+
+
+def test_gradcam_cli_does_not_overwrite_duplicate_stems(
+    sample_dataset: Path, tmp_path: Path, capsys
+):
+    """Regression: class dirs reuse file names (00/000.jpg, 01/000.jpg, ...).
+
+    A flat output directory collapsed 12 images down to 4 files, silently
+    discarding two thirds of the results.
+    """
+    config = _write_config(tmp_path / "c.yaml", sample_dataset, tmp_path / "run")
+    train_main(["--config", str(config)])
+    capsys.readouterr()
+
+    val_root = sample_dataset / "validation"
+    n_inputs = len(list(val_root.rglob("*.jpg")))
+    assert n_inputs > len({p.stem for p in val_root.rglob("*.jpg")}), (
+        "fixture must contain colliding stems for this test to be meaningful"
+    )
+
+    out_dir = tmp_path / "cams"
+    code = gradcam_main(
+        [
+            "--checkpoint", str(tmp_path / "run/checkpoints/best.pt"),
+            "--input", str(val_root),
+            "--output-dir", str(out_dir),
+        ]
+    )
+    assert code == 0
+
+    written = list(out_dir.rglob("*_gradcam.png"))
+    assert len(written) == n_inputs, (
+        f"expected one overlay per input image ({n_inputs}), got {len(written)}"
+    )
+    # Structure must mirror the input so results stay attributable to a class.
+    assert (out_dir / "00").is_dir()
+
+
+def test_gradcam_cli_specific_class(sample_dataset: Path, tmp_path: Path, capsys):
+    config = _write_config(tmp_path / "c.yaml", sample_dataset, tmp_path / "run")
+    train_main(["--config", str(config)])
+    capsys.readouterr()
+
+    image = next((sample_dataset / "validation/00").glob("*.jpg"))
+    code = gradcam_main(
+        [
+            "--checkpoint", str(tmp_path / "run/checkpoints/best.pt"),
+            "--input", str(image),
+            "--output-dir", str(tmp_path / "cams"),
+            "--class-index", "2",
+        ]
+    )
+    assert code == 0
+    assert "02" in capsys.readouterr().out
+
+
+def test_gradcam_cli_rejects_bad_alpha(sample_dataset: Path, tmp_path: Path):
+    config = _write_config(tmp_path / "c.yaml", sample_dataset, tmp_path / "run")
+    train_main(["--config", str(config)])
+
+    code = gradcam_main(
+        [
+            "--checkpoint", str(tmp_path / "run/checkpoints/best.pt"),
+            "--input", str(next((sample_dataset / "validation/00").glob("*.jpg"))),
+            "--alpha", "2.0",
+        ]
+    )
+    assert code == 2
+
+
+def test_gradcam_cli_missing_input_returns_1(sample_dataset: Path, tmp_path: Path):
+    config = _write_config(tmp_path / "c.yaml", sample_dataset, tmp_path / "run")
+    train_main(["--config", str(config)])
+
+    code = gradcam_main(
+        [
+            "--checkpoint", str(tmp_path / "run/checkpoints/best.pt"),
+            "--input", str(tmp_path / "absent.jpg"),
+        ]
+    )
+    assert code == 1
+
+
+# ----------------------------------------------------------------------------
 # --help must work for every entry point
 # ----------------------------------------------------------------------------
-@pytest.mark.parametrize("main", [train_main, eval_main, predict_main])
+@pytest.mark.parametrize("main", [train_main, eval_main, predict_main, gradcam_main])
 def test_help_exits_zero(main, capsys):
     with pytest.raises(SystemExit) as excinfo:
         main(["--help"])

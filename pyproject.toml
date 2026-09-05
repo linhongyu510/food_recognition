@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "food-recognition"
-version = "0.2.0"
+version = "0.3.0"
 description = "Food image classification with PyTorch: CBAM attention, self-training and reproducible CLI workflows"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -46,6 +46,7 @@ Issues = "https://github.com/linhongyu510/food_recognition/issues"
 food-recognition-train = "food_recognition.cli:train_main"
 food-recognition-eval = "food_recognition.cli:eval_main"
 food-recognition-predict = "food_recognition.cli:predict_main"
+food-recognition-gradcam = "food_recognition.cli:gradcam_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
