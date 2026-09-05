@@ -9,9 +9,9 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 176-test suite are verified and run in CI on
-> every push. Food-11 accuracy is measured and recorded with full provenance in
-> [Benchmarks](#benchmarks); Food-101 is not yet measured.
+> **Status.** The pipeline, CLI and 185-test suite are verified and run in CI on
+> every push. Food-11 and Food-101 accuracy are both measured and recorded with
+> full provenance in [Benchmarks](#benchmarks).
 
 ---
 
@@ -119,11 +119,29 @@ python scripts/download_dataset.py
 Food-101 ships in its own layout — `images/<class>/<hash>.jpg` plus
 `meta/train.txt` and `meta/test.txt` listing the official splits. Download it
 from [the ETH Zurich page](https://data.vision.ee.ethz.ch/cvl/datasets_extra/food-101/)
-(~5 GB), then convert it:
+(~4.7 GB), then convert it:
 
 ```bash
 python scripts/prepare_food101.py --source /path/to/food-101 --output data/food-101
 ```
+
+> The canonical archive is `http://data.vision.ee.ethz.ch/cvl/food-101.tar.gz`,
+> but it served ~0.25 MB/s when this was measured — over 5 hours for one file.
+> The [`ethz/food101`](https://huggingface.co/datasets/ethz/food101) mirror on
+> Hugging Face carries the same 75,750 / 25,250 official split and downloaded in
+> about two minutes. It ships Parquet rather than JPEG trees, so use the helper
+> below to rebuild the official layout first:
+>
+> ```bash
+> pip install -e ".[food101]"
+> python scripts/food101_from_parquet.py --output ~/data/food-101
+> python scripts/prepare_food101.py --source ~/data/food-101 --output data/food-101
+> ```
+>
+> The official split survives the round trip because the mirror keeps each
+> original filename in the Parquet `image.path` field, and class ordering is read
+> from the shard's schema metadata rather than guessed. Verified against a direct
+> rebuild: identical `meta/` files and byte-identical images.
 
 This creates symlinks by default, so it finishes in seconds and adds almost no
 disk usage. The links are relative, so moving the source and output together
@@ -137,8 +155,9 @@ so results stay comparable with published numbers.
 food-recognition-train --config configs/food101_efficientnet_cbam.yaml
 ```
 
-Food-101 is 101 classes and 75,750 training images, so expect roughly 20–40
-minutes per epoch on a single mid-range GPU — considerably heavier than Food-11.
+Food-101 is 101 classes and 75,750 training images, so it is far heavier than
+Food-11: **8.6 min per epoch** on the Apple M5 Pro used for
+[Benchmarks](#benchmarks), i.e. about 4.3 hours for the full 30-epoch schedule.
 
 ## Training
 
@@ -456,7 +475,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, Food-11 download, Food-101 conversion
-tests/                    # 176 tests
+tests/                    # 185 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
