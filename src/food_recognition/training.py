@@ -115,13 +115,32 @@ class Trainer:
         self.bundle = bundle if bundle is not None else create_dataloaders(cfg)
         self.classes = self.bundle.classes
 
-        self.model, _ = initialize_model(
+        self.model, native_size = initialize_model(
             cfg.model_name,
             cfg.num_classes,
             linear_probe=cfg.linear_probe,
             use_pretrained=cfg.use_pretrained,
             dropout=cfg.dropout,
         )
+        # Backbones like efficientnet_b3/b4 were designed for 300/380px. Training
+        # them at the 224 default silently throws away most of what the extra
+        # capacity is for, and the accuracy looks disappointing for no visible
+        # reason. Warn rather than override: 224 is a legitimate choice when the
+        # run has to fit a compute budget, but it should be deliberate.
+        #
+        # Gated on native_size > 224 so this only fires for backbones that really
+        # do declare a higher resolution. simple_cnn reports 224 as a nominal
+        # default and is routinely trained at 32px, which is not a mistake.
+        if native_size > 224 and cfg.image_size < native_size * 0.9:
+            logger.warning(
+                "image_size=%d is well below the native %dpx for %s; "
+                "expect to lose accuracy that the larger backbone would "
+                "otherwise provide (set image_size=%d to use it fully)",
+                cfg.image_size,
+                native_size,
+                cfg.model_name,
+                native_size,
+            )
         self.model.to(self.device)
 
         self.criterion = nn.CrossEntropyLoss(label_smoothing=cfg.label_smoothing)

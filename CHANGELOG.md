@@ -5,6 +5,38 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-09-06
+
+### Added
+
+- **Measured EfficientNet-B4 + CBAM benchmarks on Food-11**, the architecture a
+  removed performance claim had named but which had never been trained in this
+  repository. Two runs, so the architecture change and the resolution change can
+  be told apart: **94.24%** at 224px and **95.00%** at its native 380px, against
+  93.64% for `efficientnet_b0_cbam` at 224px. Going B0 → B4 at fixed 224px is
+  worth +0.61 points for 4.3x the parameters and 2.7x the time; the move to 380px
+  adds a further +0.76. Both checkpoints were re-scored through
+  `food-recognition-eval` and reproduced their figures to six decimal places
+  across all 660 validation images.
+- `configs/food11_bench_effnet_b4_cbam.yaml` (380px, native) and
+  `configs/food11_bench_effnet_b4_cbam_224.yaml` (224px control) reproduce them.
+- A warning when `image_size` sits well below the backbone's native resolution.
+  `image_size` defaults to 224 while EfficientNet-B3 and B4 were trained at 300px
+  and 380px, so the default silently ran B4 on 35% of its intended pixels — worth
+  0.76 points on Food-11 — with nothing in the output to say so. The trainer had
+  been discarding the native size that `initialize_model` already returned. The
+  setting is not overridden, since running below native resolution is a valid way
+  to fit a compute budget.
+- `docs/benchmarks/` gains `metrics.json` and `history.json` for both B4 runs,
+  plus a Grad-CAM overlay from the 380px model.
+
+### Changed
+
+- README documents the resolution trade-off under Models, and the note on the two
+  removed figures now records that the B4 gap has been closed on Food-11 — while
+  keeping both old numbers marked unverified, since neither is a like-for-like
+  comparison.
+
 ## [0.4.0] - 2026-09-05
 
 ### Added

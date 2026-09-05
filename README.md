@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 185-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 188-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -320,6 +320,26 @@ Pass any of these as `model_name` (29 total, `available_models()` lists them):
 | Other | `alexnet`, `vgg11_bn`, `vgg16_bn`, `densenet121`, `squeezenet`, `googlenet`, `mobilenet_v3_large`, `convnext_tiny` |
 | **+ CBAM** | append `_cbam` to any ResNet / EfficientNet / DenseNet / ConvNeXt name |
 
+### Input resolution
+
+`image_size` defaults to 224, but the bigger EfficientNets were trained at higher
+resolutions: B3 at 300px and B4 at 380px. Leaving the default in place runs B4 on
+35% of the pixels it was designed for, and on Food-11 that costs **0.76 points**
+(94.24% at 224px versus 95.00% at 380px — see [Benchmarks](#benchmarks)).
+
+Training warns when `image_size` falls well below the backbone's native
+resolution:
+
+```
+WARNING | image_size=224 is well below the native 380px for efficientnet_b4_cbam;
+          expect to lose accuracy that the larger backbone would otherwise
+          provide (set image_size=380 to use it fully)
+```
+
+Running below native resolution is a legitimate way to fit a compute budget —
+380px costs 2.7x the time per epoch here — so the warning does not override the
+setting. It exists because the accuracy loss is otherwise invisible.
+
 ### CBAM
 
 [CBAM](https://arxiv.org/abs/1807.06521) (Woo et al., ECCV 2018) applies channel
@@ -380,14 +400,29 @@ supervised baselines.
 
 ### Food-11
 
-| Model | Params | Val accuracy | Macro F1 | Best epoch | Train time |
-|---|---:|---:|---:|---:|---:|
-| `resnet18` | 11.2 M | **88.64%** | 0.8851 | 26 / 30 | 6.0 min |
-| `efficientnet_b0_cbam` | 4.2 M | **93.64%** | 0.9358 | 30 / 30 | 10.7 min |
+| Model | Input | Params | Val accuracy | Macro F1 | Best epoch | Train time |
+|---|---:|---:|---:|---:|---:|---:|
+| `resnet18` | 224px | 11.2 M | **88.64%** | 0.8851 | 26 / 30 | 6.0 min |
+| `efficientnet_b0_cbam` | 224px | 4.2 M | **93.64%** | 0.9358 | 30 / 30 | 10.7 min |
+| `efficientnet_b4_cbam` | 224px | 18.0 M | **94.24%** | 0.9418 | 21 / 30 | 29.0 min |
+| `efficientnet_b4_cbam` | 380px | 18.0 M | **95.00%** | 0.9497 | 13 / 30 | 77.3 min |
 
 CBAM on EfficientNet-B0 beats the ResNet18 baseline by **5.0 points with 2.6x
 fewer parameters**, which is the result the attention module is there to
 produce.
+
+The two B4 rows exist to separate two variables that are easy to conflate.
+Going B0 → B4 at a fixed 224px buys **+0.61 points for 4.3x the parameters and
+2.7x the time**; raising that same B4 to its native 380px buys a further
+**+0.76 points** and takes the total to 7.2x the B0 wall clock. Most of what B4
+has to offer on this dataset comes from the resolution it was designed for, not
+from the extra parameters alone — and B0 + CBAM remains the better accuracy-per-
+minute choice unless the last point matters more than the time.
+
+Grad-CAM from the 380px B4 model on a validation noodle plate, predicted at
+0.9338 — heat on the pasta and its garnish, with the plate rim cold:
+
+![Grad-CAM from EfficientNet-B4 + CBAM on Food-11 noodles](docs/benchmarks/gradcam_food11_b4_noodles.png)
 
 ### Food-101
 
@@ -410,11 +445,11 @@ the crust and pepperoni, not the box:
 
 | | Food-11 | Food-101 |
 |---|---|---|
-| Commit | `d4ba3bc` | `ac37bb4` |
+| Commit | `d4ba3bc` (resnet18, b0) / `8feb7a9` (b4) | `ac37bb4` |
 | Dataset | ML2021 HW3 split — Kaggle `zhaopang/ml2021springhw3` v1 | Official split via [`ethz/food101`](https://huggingface.co/datasets/ethz/food101) |
 | Train / val | 3,080 labelled (280/class) / 660 (60/class) | 75,750 (750/class) / 25,250 (250/class) |
-| Config | `configs/food11_bench_resnet18.yaml`, `configs/food11_bench_effnet_cbam.yaml` | `configs/food101_bench_effnet_cbam.yaml` |
-| Epoch cost | 11.9 s / 21.5 s | 8.5 min |
+| Config | `configs/food11_bench_resnet18.yaml`, `configs/food11_bench_effnet_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam_224.yaml` | `configs/food101_bench_effnet_cbam.yaml` |
+| Epoch cost | 11.9 s / 21.5 s / 58 s / 155 s | 8.5 min |
 
 Common to all runs: Apple M5 Pro (18 cores, 48 GB) on the MPS backend, Python
 3.12.14, torch 2.14.0, torchvision 0.29.0, seed 0 with `deterministic: true`,
@@ -482,20 +517,23 @@ seed makes a run repeatable on the *same* machine, not across machines.
 ### The two figures that used to be here
 
 Earlier revisions claimed 94.56% on Food-11 and 84.09% on Food-101. Neither
-could be traced to any script, log or checkpoint in this repository, and the
-architecture named for the Food-101 figure (EfficientNet-B4 + CBAM) was never
-implemented — the original experiments used EfficientNet-**B0**. They were
-removed rather than carried forward unverified, and the tables above replace
-them with numbers that ship with the config, commit and hardware needed to
-check them.
+could be traced to any script, log or checkpoint in this repository, and at the
+time the architecture named for the Food-101 figure (EfficientNet-B4 + CBAM) had
+never been trained here — the original experiments used EfficientNet-**B0**.
+They were removed rather than carried forward unverified, and the tables above
+replace them with numbers that ship with the config, commit and hardware needed
+to check them.
+
+The B4 gap has since been closed on Food-11: `efficientnet_b4_cbam` is now
+benchmarked at both 224px and its native 380px, reaching **95.00%** — which is
+above the old 94.56% claim, but on the 3,080-image HW3 split rather than the full
+9,866-image Food-11, so it still is not the same measurement.
 
 Neither old figure is contradicted by the new ones, because neither is directly
-comparable. The measured 88.70% on Food-101 is above the 84.09% that was
-claimed, but it comes from EfficientNet-B0 + CBAM rather than the B4 the old
-text named; and the measured 93.64% on Food-11 is below 94.56%, but it is
-trained on the 3,080-image HW3 split rather than the full 9,866-image dataset.
-Both old numbers stay unverified rather than being retro-fitted to whichever new
-result sits closest.
+comparable. On Food-101 the old text named B4 while the measured 88.70% comes
+from B0 + CBAM; on Food-11 the split differs as described above. Both old numbers
+stay unverified rather than being retro-fitted to whichever new result sits
+closest.
 
 ## Project layout
 
@@ -513,7 +551,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, Food-11 download, Food-101 conversion
-tests/                    # 185 tests
+tests/                    # 188 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts

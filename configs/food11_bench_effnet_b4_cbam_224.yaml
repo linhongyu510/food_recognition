@@ -1,0 +1,55 @@
+# Food-11 control run: EfficientNet-B4 + CBAM held at 224px.
+#
+# Reproduces the numbers recorded in README > Benchmarks.
+# Expects the ML2021 HW3 Food-11 layout under data/food-11 (see Benchmarks).
+#
+# Purpose: this config exists only to separate two variables. Comparing B0 at
+# 224px against B4 at its native 380px changes the architecture *and* the input
+# resolution at the same time, so the difference cannot be attributed to either.
+# This run holds resolution at 224px and changes only the backbone, which is why
+# it is the only Food-11 config that deliberately runs a model below its native
+# resolution -- the trainer will warn about exactly that, and the warning is
+# expected here.
+#
+# Fully supervised: the 6,786-image unlabelled pool is deliberately unused so
+# this number is a clean supervised baseline.
+
+model_name: efficientnet_b4_cbam
+num_classes: 11
+use_pretrained: true
+linear_probe: false
+dropout: 0.3
+
+train_dir: data/food-11/training/labeled
+val_dir: data/food-11/validation
+unlabeled_dir: null
+
+image_size: 224
+batch_size: 32
+num_workers: 4
+use_autoaugment: true
+
+epochs: 30
+learning_rate: 0.0005
+weight_decay: 0.0001
+label_smoothing: 0.1
+grad_clip_norm: 5.0
+scheduler: cosine
+warmup_epochs: 2
+
+device: auto
+seed: 0
+use_amp: false          # MPS autocast is unreliable; keep fp32 for reproducibility
+val_every_n_epochs: 1
+
+output_dir: runs/bench_effnet_b4_cbam_224
+checkpoint_name: best.pt
+
+early_stopping:
+  # Off, to match the other benchmark rows. See the 380px sibling config.
+  enabled: false
+  patience: 8
+  min_delta: 0.0005
+
+semi_supervised:
+  enabled: false

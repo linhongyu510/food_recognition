@@ -369,3 +369,59 @@ def test_early_stopper_min_delta_ignores_tiny_gains():
 def test_early_stopper_rejects_bad_mode():
     with pytest.raises(ValueError, match="mode"):
         EarlyStopper(mode="sideways")
+
+
+def test_warns_when_image_size_is_far_below_native(
+    sample_dataset: Path, tmp_path: Path, caplog
+):
+    """Training b4 at 224 quietly wastes the backbone; say so.
+
+    Uses efficientnet_b3 (native 300px) rather than b4 to keep the test cheap:
+    the warning is driven by the registry's declared native size, not by which
+    model it is, and use_pretrained stays False so no weights are downloaded.
+    """
+    cfg = _tiny_cfg(
+        sample_dataset,
+        tmp_path / "run",
+        model_name="efficientnet_b3",
+        image_size=224,
+        epochs=1,
+    )
+    with caplog.at_level("WARNING"):
+        Trainer(cfg)
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    hits = [w for w in warnings if "below the native" in w]
+    assert hits, f"expected a resolution warning, got {warnings}"
+    # The message has to name the fix, not just complain.
+    assert "300" in hits[0] and "efficientnet_b3" in hits[0]
+
+
+def test_no_resolution_warning_at_native_size(
+    sample_dataset: Path, tmp_path: Path, caplog
+):
+    """A model trained at its designed resolution must stay quiet."""
+    cfg = _tiny_cfg(
+        sample_dataset,
+        tmp_path / "run",
+        model_name="resnet18",
+        image_size=224,
+        epochs=1,
+    )
+    with caplog.at_level("WARNING"):
+        Trainer(cfg)
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert not [w for w in warnings if "below the native" in w], warnings
+
+
+def test_no_resolution_warning_for_simple_cnn(
+    sample_dataset: Path, tmp_path: Path, caplog
+):
+    """simple_cnn has no pretrained resolution to respect, so 32px is fine."""
+    cfg = _tiny_cfg(sample_dataset, tmp_path / "run", image_size=32, epochs=1)
+    with caplog.at_level("WARNING"):
+        Trainer(cfg)
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert not [w for w in warnings if "below the native" in w], warnings
