@@ -1,0 +1,48 @@
+# Food-101 benchmark run: EfficientNet-B0 + CBAM.
+#
+# Reproduces the numbers recorded in README > Benchmarks.
+#   python scripts/prepare_food101.py --source /path/to/food-101 --output data/food-101
+#   food-recognition-train --config configs/food101_bench_effnet_cbam.yaml
+
+model_name: efficientnet_b0_cbam
+num_classes: 101
+use_pretrained: true
+linear_probe: false
+dropout: 0.3
+
+train_dir: data/food-101/training/labeled
+val_dir: data/food-101/validation
+unlabeled_dir: null
+
+image_size: 224
+batch_size: 64
+num_workers: 8
+use_autoaugment: true
+
+epochs: 30
+learning_rate: 0.0003
+weight_decay: 0.0001
+label_smoothing: 0.1
+grad_clip_norm: 5.0
+scheduler: cosine
+warmup_epochs: 2
+
+device: auto
+seed: 0
+# autocast is unreliable on MPS; fp32 keeps this run reproducible.
+use_amp: false
+val_every_n_epochs: 1
+
+output_dir: runs/food101_bench_effnet_cbam
+checkpoint_name: best.pt
+
+# Deliberately off: with cosine annealing, patience cuts the run during the
+# mid-schedule high-LR plateau, before the anneal pays off. Measured on Food-11:
+# early stopping cost 2.3 points. See README > Benchmarks.
+early_stopping:
+  enabled: false
+  patience: 6
+  min_delta: 0.0005
+
+semi_supervised:
+  enabled: false

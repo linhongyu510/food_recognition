@@ -5,6 +5,40 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-09-05
+
+### Added
+
+- **Measured Food-101 benchmark**, closing the last "not yet measured" gap.
+  `efficientnet_b0_cbam` reaches **88.70%** top-1 (macro F1 0.8865) over the
+  official 75,750 / 25,250 split, 101 classes, in 254 min on an Apple M5 Pro.
+  Recorded with commit, dataset source, hardware, software versions, seed and
+  config, per the rule in CONTRIBUTING.md, and re-scored through
+  `food-recognition-eval` — a different code path from training — which matched
+  to six decimal places across all 25,250 images.
+- `scripts/food101_from_parquet.py` rebuilds the official `images/` + `meta/`
+  layout from the `ethz/food101` Hugging Face mirror. The canonical ETH archive
+  served 0.25 MB/s when measured — 5.6 hours for one 4.7 GB file — against about
+  two minutes for the mirror. The official split survives the round trip because
+  the mirror preserves each original filename in the Parquet `image.path` field;
+  class ordering is read from the shard's schema metadata rather than assumed.
+- `configs/food101_bench_effnet_cbam.yaml` reproduces the Food-101 numbers.
+- `pyarrow` as an optional `[food101]` extra.
+- `docs/benchmarks/` gains the Food-101 `metrics.json` (including the full
+  per-class table) and `history.json`, plus a Grad-CAM overlay from the trained
+  model.
+
+### Changed
+
+- Food-101 per-epoch cost in the README is now the measured 8.5 min rather than
+  the guessed "20-40 minutes on a single mid-range GPU".
+- Early stopping is off in the Food-101 benchmark config. Validation accuracy
+  plateaued near 86.9% around epoch 13 and then climbed through the cosine
+  anneal to peak at epoch 29 of 30; the default `patience: 6` would have cut it
+  mid-plateau and cost roughly 1.5 points. This is the same trap already
+  documented for Food-11, seen from the other side.
+- Test suite grew from 176 to 185 tests.
+
 ## [0.3.1] - 2026-09-05
 
 ### Added
