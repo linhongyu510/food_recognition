@@ -1,0 +1,48 @@
+# Food-11 with ResNet18 (ImageNet pretrained).
+#
+# Relative paths are resolved against the CURRENT WORKING DIRECTORY,
+# so run this from the repository root.
+
+model_name: resnet18
+num_classes: 11
+use_pretrained: true
+linear_probe: false
+dropout: 0.2
+
+train_dir: data/food-11/training/labeled
+val_dir: data/food-11/validation
+unlabeled_dir: data/food-11/training/unlabeled
+
+image_size: 224
+batch_size: 32
+num_workers: 4
+use_autoaugment: true
+
+epochs: 30
+learning_rate: 0.0003
+weight_decay: 0.0001
+label_smoothing: 0.1
+grad_clip_norm: 5.0
+scheduler: cosine
+warmup_epochs: 1
+
+device: auto
+seed: 0
+use_amp: true
+val_every_n_epochs: 1
+
+output_dir: runs/food11_resnet18
+checkpoint_name: best.pt
+
+early_stopping:
+  enabled: true
+  patience: 8
+  min_delta: 0.0005
+
+# Disabled by default: enable only when data/food-11/training/unlabeled exists.
+semi_supervised:
+  enabled: false
+  refresh_interval: 5
+  confidence_threshold: 0.95
+  activation_threshold: 0.7
+  max_ratio: 2.0

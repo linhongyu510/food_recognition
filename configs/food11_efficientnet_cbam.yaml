@@ -1,0 +1,47 @@
+# Food-11 with EfficientNet-B0 + CBAM attention.
+#
+# This is the architecture actually implemented in the original experiment
+# scripts (experiments/legacy/model3_1.py, model3_2.py).
+
+model_name: efficientnet_b0_cbam
+num_classes: 11
+use_pretrained: true
+linear_probe: false
+dropout: 0.3
+
+train_dir: data/food-11/training/labeled
+val_dir: data/food-11/validation
+unlabeled_dir: data/food-11/training/unlabeled
+
+image_size: 224
+batch_size: 32
+num_workers: 4
+use_autoaugment: true
+
+epochs: 50
+learning_rate: 0.0001
+weight_decay: 0.0001
+label_smoothing: 0.1
+grad_clip_norm: 5.0
+scheduler: cosine
+warmup_epochs: 2
+
+device: auto
+seed: 0
+use_amp: true
+val_every_n_epochs: 1
+
+output_dir: runs/food11_effnet_cbam
+checkpoint_name: best.pt
+
+early_stopping:
+  enabled: true
+  patience: 10
+  min_delta: 0.0005
+
+semi_supervised:
+  enabled: true
+  refresh_interval: 5
+  confidence_threshold: 0.95
+  activation_threshold: 0.7
+  max_ratio: 2.0

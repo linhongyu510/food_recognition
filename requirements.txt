@@ -1,11 +1,17 @@
-torch>=1.12.0
-torchvision>=0.13.0
-torchaudio>=0.12.0
-numpy>=1.21.0
-matplotlib>=3.5.0
-Pillow>=9.0.0
-tqdm>=4.64.0
-scikit-learn>=1.1.0
-seaborn>=0.11.0
-albumentations>=1.2.0
-tensorboard>=2.9.0
+# Runtime dependencies are declared in pyproject.toml (the source of truth).
+#
+#   pip install -e .              # runtime
+#   pip install -e ".[dev]"       # + pytest, coverage, ruff
+#   pip install -e ".[viz]"       # + matplotlib
+#   pip install -e ".[download]"  # + kagglehub
+#
+# This file is kept for compatibility with `pip install -r requirements.txt`.
+#
+# For CPU-only torch (much smaller download), install torch first:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+torch>=2.4
+torchvision>=0.19
+numpy>=1.21
+Pillow>=9.0
+PyYAML>=6.0
