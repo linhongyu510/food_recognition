@@ -5,6 +5,42 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-09-05
+
+### Added
+
+- **Measured Food-11 benchmarks**, replacing the "not yet measured" placeholder.
+  `efficientnet_b0_cbam` reaches **93.64%** validation accuracy against
+  `resnet18`'s **88.64%** — 5.0 points better with 2.6x fewer parameters, which
+  is what the attention module exists to deliver. Recorded with commit, dataset
+  version, hardware, software versions, seed and config, per the rule in
+  CONTRIBUTING.md.
+- `configs/food11_bench_resnet18.yaml` and `configs/food11_bench_effnet_cbam.yaml`
+  reproduce those numbers.
+- `docs/benchmarks/*.json` — the raw `metrics.json` and `history.json` from both
+  runs, so every figure in the README can be checked against its source.
+
+### Fixed
+
+- **Checkpoints trained with `dropout > 0` could not be reloaded.** `dropout>0`
+  wraps the classifier head in `Sequential(Dropout, Linear)`, which shifts the
+  state_dict keys from `fc.weight` to `fc.1.weight`. `load_predictor` rebuilt the
+  model with the default `dropout=0.0`, so loading failed with
+  `Missing key(s) in state_dict: "fc.weight"`. Every shipped config sets
+  `dropout > 0`, so this broke `food-recognition-eval`, `-predict` and
+  `-gradcam` on the documented happy path. The value is now read back from the
+  checkpoint's embedded config.
+
+  Found by running `food-recognition-eval` against a real trained checkpoint —
+  the existing round-trip test used the default `dropout=0`, so it never
+  exercised the broken path. Now covered for `dropout` in {0.0, 0.2, 0.5}, plus
+  a test asserting a reloaded model reproduces its training accuracy rather than
+  merely loading without error.
+
+### Changed
+
+- Test suite grew from 172 to 176 tests.
+
 ## [0.3.0] - 2026-09-05
 
 ### Added
