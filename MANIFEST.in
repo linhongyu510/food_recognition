@@ -1,0 +1,12 @@
+# The sdist should be enough to reproduce the project, not just import it.
+# Without these, `pip download --no-binary` gives you the package but none of
+# the configs the README tells you to train with, none of the dataset scripts,
+# and no way to run the test suite.
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+recursive-include configs *.yaml
+recursive-include scripts *.py
+recursive-include tests *.py
+recursive-include docs/benchmarks *.json

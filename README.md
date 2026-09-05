@@ -9,9 +9,9 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 176-test suite are verified and run in CI on
-> every push. Food-11 accuracy is measured and recorded with full provenance in
-> [Benchmarks](#benchmarks); Food-101 is not yet measured.
+> **Status.** The pipeline, CLI and 185-test suite are verified and run in CI on
+> every push. Food-11 and Food-101 accuracy are both measured and recorded with
+> full provenance in [Benchmarks](#benchmarks).
 
 ---
 
@@ -119,11 +119,29 @@ python scripts/download_dataset.py
 Food-101 ships in its own layout — `images/<class>/<hash>.jpg` plus
 `meta/train.txt` and `meta/test.txt` listing the official splits. Download it
 from [the ETH Zurich page](https://data.vision.ee.ethz.ch/cvl/datasets_extra/food-101/)
-(~5 GB), then convert it:
+(~4.7 GB), then convert it:
 
 ```bash
 python scripts/prepare_food101.py --source /path/to/food-101 --output data/food-101
 ```
+
+> The canonical archive is `http://data.vision.ee.ethz.ch/cvl/food-101.tar.gz`,
+> but it served ~0.25 MB/s when this was measured — over 5 hours for one file.
+> The [`ethz/food101`](https://huggingface.co/datasets/ethz/food101) mirror on
+> Hugging Face carries the same 75,750 / 25,250 official split and downloaded in
+> about two minutes. It ships Parquet rather than JPEG trees, so use the helper
+> below to rebuild the official layout first:
+>
+> ```bash
+> pip install -e ".[food101]"
+> python scripts/food101_from_parquet.py --output ~/data/food-101
+> python scripts/prepare_food101.py --source ~/data/food-101 --output data/food-101
+> ```
+>
+> The official split survives the round trip because the mirror keeps each
+> original filename in the Parquet `image.path` field, and class ordering is read
+> from the shard's schema metadata rather than guessed. Verified against a direct
+> rebuild: identical `meta/` files and byte-identical images.
 
 This creates symlinks by default, so it finishes in seconds and adds almost no
 disk usage. The links are relative, so moving the source and output together
@@ -137,8 +155,9 @@ so results stay comparable with published numbers.
 food-recognition-train --config configs/food101_efficientnet_cbam.yaml
 ```
 
-Food-101 is 101 classes and 75,750 training images, so expect roughly 20–40
-minutes per epoch on a single mid-range GPU — considerably heavier than Food-11.
+Food-101 is 101 classes and 75,750 training images, so it is far heavier than
+Food-11: **8.5 min per epoch** on the Apple M5 Pro used for
+[Benchmarks](#benchmarks), i.e. about 4.2 hours for the full 30-epoch schedule.
 
 ## Training
 
@@ -355,8 +374,11 @@ count across the labelled and pseudo-labelled phases.
 
 ## Benchmarks
 
-Measured on this codebase. Both runs are fully supervised — the 6,786-image
-unlabelled pool is deliberately unused, so these are clean supervised baselines.
+Measured on this codebase. Every run is fully supervised — on Food-11 the
+6,786-image unlabelled pool is deliberately unused — so these are clean
+supervised baselines.
+
+### Food-11
 
 | Model | Params | Val accuracy | Macro F1 | Best epoch | Train time |
 |---|---:|---:|---:|---:|---:|
@@ -367,33 +389,53 @@ CBAM on EfficientNet-B0 beats the ResNet18 baseline by **5.0 points with 2.6x
 fewer parameters**, which is the result the attention module is there to
 produce.
 
+### Food-101
+
+| Model | Params | Val accuracy | Macro F1 | Best epoch | Train time |
+|---|---:|---:|---:|---:|---:|
+| `efficientnet_b0_cbam` | 4.3 M | **88.70%** | 0.8865 | 29 / 30 | 254 min |
+
+101 classes over the official 75,750 / 25,250 split. Per-class F1 spans
+`edamame` at 1.000 down to `steak` at 0.588 — the confusable meat and dessert
+classes are where the errors concentrate, and the full per-class table is in
+[`docs/benchmarks/`](docs/benchmarks/).
+
+Grad-CAM from this model on a validation pizza, predicted at 0.9651 — heat on
+the crust and pepperoni, not the box:
+
+![Grad-CAM on Food-101 pizza](docs/benchmarks/gradcam_food101_pizza.png)
+
 <details>
 <summary>Provenance</summary>
 
-| | |
-|---|---|
-| Commit | `d4ba3bc` |
-| Dataset | Food-11, ML2021 HW3 split — Kaggle `zhaopang/ml2021springhw3` v1 |
-| Train / val | 3,080 labelled (280 per class) / 660 (60 per class) |
-| Hardware | Apple M5 Pro, 18 cores, 48 GB, MPS backend |
-| Software | Python 3.12.14, torch 2.14.0, torchvision 0.29.0 |
-| Configs | `configs/food11_bench_resnet18.yaml`, `configs/food11_bench_effnet_cbam.yaml` |
-| Seed | 0 (`deterministic: true`) |
+| | Food-11 | Food-101 |
+|---|---|---|
+| Commit | `d4ba3bc` | `ac37bb4` |
+| Dataset | ML2021 HW3 split — Kaggle `zhaopang/ml2021springhw3` v1 | Official split via [`ethz/food101`](https://huggingface.co/datasets/ethz/food101) |
+| Train / val | 3,080 labelled (280/class) / 660 (60/class) | 75,750 (750/class) / 25,250 (250/class) |
+| Config | `configs/food11_bench_resnet18.yaml`, `configs/food11_bench_effnet_cbam.yaml` | `configs/food101_bench_effnet_cbam.yaml` |
+| Epoch cost | 11.9 s / 21.5 s | 8.5 min |
 
-Accuracy is top-1 on the validation split, read from each run's
-`metrics.json`. Both checkpoints were then re-scored through
-`food-recognition-eval` — a different code path from training — and reproduced
-the same figures.
+Common to all runs: Apple M5 Pro (18 cores, 48 GB) on the MPS backend, Python
+3.12.14, torch 2.14.0, torchvision 0.29.0, seed 0 with `deterministic: true`,
+and `use_amp: false` because autocast is unreliable on MPS.
 
-`testing/` is not used: its 3,347 images sit in a single directory with no
-labels, so validation is the only labelled held-out split.
+Accuracy is top-1 on the validation split, read from each run's `metrics.json`.
+Every checkpoint was then re-scored through `food-recognition-eval` — a
+different code path from training — and reproduced the same figures; Food-101
+matched to six decimal places across all 25,250 images.
+
+Two caveats stated rather than buried. The Food-11 runs use the **3,080-image
+HW3 split**, not the full 9,866-image Food-11, so they are not directly
+comparable to papers using the latter; and Food-11's `testing/` directory is
+unused because its 3,347 images sit in one directory with no labels.
 
 </details>
 
 <details>
 <summary>Why 30 epochs, and what the longer runs showed</summary>
 
-Both models were also run for 50 epochs. Neither improved:
+Both Food-11 models were also run for 50 epochs. Neither improved:
 
 | Run | Epochs run | Val accuracy |
 |---|---:|---:|
@@ -409,18 +451,28 @@ its middle epochs on a high learning-rate plateau, which early stopping reads
 as "no improvement" and cuts before the anneal delivers its gain. If you
 lengthen the schedule, raise `patience` with it.
 
+Food-101 shows the other half of that story, which is why early stopping is off
+in its config. Validation accuracy sat at 86.9% around epoch 13, then kept
+grinding upward through the anneal to peak at **epoch 29 of 30** — the default
+`patience: 6` would have cut it somewhere in the middle and cost roughly a
+point and a half.
+
 </details>
 
 ### Reproducing
 
 ```bash
-# Download (~918 MB) and link into place
+# Food-11 (~918 MB)
 pip install -e ".[download]"
 python scripts/download_dataset.py
 mkdir -p data && ln -s <printed-path>/food-11 data/food-11
-
 food-recognition-train --config configs/food11_bench_effnet_cbam.yaml
-cat runs/bench_effnet_cbam/metrics.json
+
+# Food-101 (~4.8 GB; see the Food-101 section above for why the mirror)
+pip install -e ".[food101]"
+python scripts/food101_from_parquet.py --output ~/data/food-101
+python scripts/prepare_food101.py --source ~/data/food-101 --output data/food-101
+food-recognition-train --config configs/food101_bench_effnet_cbam.yaml
 ```
 
 Expect different numbers on different hardware: MPS, CUDA and CPU kernels do not
@@ -433,12 +485,17 @@ Earlier revisions claimed 94.56% on Food-11 and 84.09% on Food-101. Neither
 could be traced to any script, log or checkpoint in this repository, and the
 architecture named for the Food-101 figure (EfficientNet-B4 + CBAM) was never
 implemented — the original experiments used EfficientNet-**B0**. They were
-removed rather than carried forward unverified, and the table above replaces
+removed rather than carried forward unverified, and the tables above replace
 them with numbers that ship with the config, commit and hardware needed to
 check them.
 
-Food-101 remains unmeasured. `configs/food101_efficientnet_cbam.yaml` is ready;
-at 75,750 training images it is a much longer run than Food-11.
+Neither old figure is contradicted by the new ones, because neither is directly
+comparable. The measured 88.70% on Food-101 is above the 84.09% that was
+claimed, but it comes from EfficientNet-B0 + CBAM rather than the B4 the old
+text named; and the measured 93.64% on Food-11 is below 94.56%, but it is
+trained on the 3,080-image HW3 split rather than the full 9,866-image dataset.
+Both old numbers stay unverified rather than being retro-fitted to whichever new
+result sits closest.
 
 ## Project layout
 
@@ -456,7 +513,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, Food-11 download, Food-101 conversion
-tests/                    # 176 tests
+tests/                    # 185 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
