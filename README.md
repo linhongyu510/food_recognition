@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 118-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 171-test suite are verified and run in CI on
 > every push. Benchmark accuracy on Food-11 / Food-101 has **not** yet been
 > re-measured for this codebase — see [Benchmarks](#benchmarks).
 
@@ -22,6 +22,7 @@ evaluation and inference.
 - [Data layout](#data-layout)
 - [Training](#training)
 - [Evaluation and inference](#evaluation-and-inference)
+- [Explaining predictions (Grad-CAM)](#explaining-predictions-grad-cam)
 - [Python API](#python-api)
 - [Models](#models)
 - [Configuration](#configuration)
@@ -113,6 +114,32 @@ pip install -e ".[download]"
 python scripts/download_dataset.py
 ```
 
+### Food-101
+
+Food-101 ships in its own layout — `images/<class>/<hash>.jpg` plus
+`meta/train.txt` and `meta/test.txt` listing the official splits. Download it
+from [the ETH Zurich page](https://data.vision.ee.ethz.ch/cvl/datasets_extra/food-101/)
+(~5 GB), then convert it:
+
+```bash
+python scripts/prepare_food101.py --source /path/to/food-101 --output data/food-101
+```
+
+This creates symlinks by default, so it finishes in seconds and adds almost no
+disk usage. The links are relative, so moving the source and output together
+keeps them valid. Use `--copy` for real files (needs another ~5 GB) when the
+output has to stand on its own, or `--limit-per-class 50` for a fast smoke run.
+
+The split assignment comes from the official meta files rather than a reshuffle,
+so results stay comparable with published numbers.
+
+```bash
+food-recognition-train --config configs/food101_efficientnet_cbam.yaml
+```
+
+Food-101 is 101 classes and 75,750 training images, so expect roughly 20–40
+minutes per epoch on a single mid-range GPU — considerably heavier than Food-11.
+
 ## Training
 
 ```bash
@@ -171,6 +198,59 @@ photo.jpg
 
 Checkpoints embed their architecture, image size and class names, so neither
 command needs to be told the model again.
+
+## Explaining predictions (Grad-CAM)
+
+Grad-CAM shows *which pixels* drove a prediction, which is how you catch a model
+that is right for the wrong reason — keying on a plate rim or a watermark rather
+than the food.
+
+```bash
+# One image; writes gradcam/photo_gradcam.png
+food-recognition-gradcam \
+    --checkpoint runs/food11_resnet18/checkpoints/best.pt \
+    --input photo.jpg
+
+# Original next to the overlay, for a whole directory
+food-recognition-gradcam \
+    --checkpoint runs/food11_resnet18/checkpoints/best.pt \
+    --input data/food-11/testing \
+    --output-dir cams --side-by-side
+```
+
+```
+photo.jpg
+  -> 07 (0.9412)  saved cams/photo_gradcam.png
+```
+
+Pass `--class-index` to ask *"why not that other class?"* — it explains the class
+you name instead of the predicted one, which is the useful view when a model is
+confidently wrong.
+
+```python
+from food_recognition import GradCAM, load_predictor, overlay_heatmap
+
+predictor = load_predictor("runs/food11_resnet18/checkpoints/best.pt")
+cam = GradCAM(predictor.model, classes=predictor.classes)
+
+result, display = cam.generate_from_path("photo.jpg", image_size=224)
+print(result.class_name, result.confidence)   # 07 0.9412
+print(result.heatmap.shape)                   # (224, 224), values in [0, 1]
+
+overlay_heatmap(display, result.heatmap, alpha=0.5).save("cam.png")
+```
+
+The target convolution layer is resolved automatically per architecture
+(`layer4` for ResNet, `features` for EfficientNet/VGG, the CBAM block for CBAM
+models). Override it with `GradCAM(model, target_layer=...)`. Hooks are removed
+in a `finally` block, so a failed call cannot leave them attached, and the
+model's train/eval mode is restored afterwards.
+
+Implementation notes: this uses `register_full_backward_hook` (PyTorch's
+docstring marks `register_backward_hook` as deprecated, warning that "the
+behavior of this function will change in future versions") and resizes with
+`torch.nn.functional.interpolate`, so **OpenCV is not a dependency**. The
+colormap is computed in NumPy, so matplotlib is not required either.
 
 ## Python API
 
@@ -294,12 +374,13 @@ src/food_recognition/     # the package
 ├── training.py           # Trainer: loop, validation, early stopping, scheduling
 ├── metrics.py            # accuracy, per-class P/R/F1, confusion matrix
 ├── predict.py            # Predictor and checkpoint loading
+├── gradcam.py            # Grad-CAM attribution and heatmap overlays
 ├── utils.py              # seeding, devices, early stopping, checkpoint I/O
-└── cli.py                # train / eval / predict entry points
+└── cli.py                # train / eval / predict / gradcam entry points
 
 configs/                  # YAML configs
-scripts/                  # make_sample_data.py, download_dataset.py
-tests/                    # 118 tests
+scripts/                  # sample data, Food-11 download, Food-101 conversion
+tests/                    # 171 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
@@ -315,7 +396,7 @@ linting, and still contain hard-coded `cuda:0` device assignments.
 ```bash
 pip install -e ".[dev]"
 
-pytest -q                                    # 118 tests
+pytest -q                                    # 171 tests
 pytest -q --cov=food_recognition             # with coverage
 ruff check src tests scripts                 # lint
 ```

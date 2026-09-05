@@ -1,0 +1,51 @@
+# Food-101 with EfficientNet-B0 + CBAM.
+#
+# Prepare the data first:
+#   python scripts/prepare_food101.py --source /path/to/food-101 --output data/food-101
+#
+# Food-101 has 101 classes and 75,750 training images, so this is a much
+# heavier run than the Food-11 configs. On a single mid-range GPU expect
+# roughly 20-40 minutes per epoch at this batch size.
+#
+# Class directories are names (apple_pie, baby_back_ribs, ...), so labels are
+# assigned alphabetically and stored in the checkpoint.
+
+model_name: efficientnet_b0_cbam
+num_classes: 101
+use_pretrained: true
+linear_probe: false
+dropout: 0.3
+
+train_dir: data/food-101/training/labeled
+val_dir: data/food-101/validation
+unlabeled_dir: null
+
+image_size: 224
+batch_size: 64
+num_workers: 8
+use_autoaugment: true
+
+epochs: 30
+learning_rate: 0.0003
+weight_decay: 0.0001
+label_smoothing: 0.1
+grad_clip_norm: 5.0
+scheduler: cosine
+warmup_epochs: 2
+
+device: auto
+seed: 0
+use_amp: true
+val_every_n_epochs: 1
+
+output_dir: runs/food101_effnet_cbam
+checkpoint_name: best.pt
+
+early_stopping:
+  enabled: true
+  patience: 6
+  min_delta: 0.0005
+
+# Food-101 is fully labelled, so there is no unlabelled pool to draw on.
+semi_supervised:
+  enabled: false

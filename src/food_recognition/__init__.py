@@ -17,7 +17,7 @@ Command line::
 
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from .config import (
     EarlyStoppingConfig,
@@ -34,6 +34,7 @@ from .data import (
     build_transform,
     create_dataloaders,
 )
+from .gradcam import GradCAM, GradCAMResult, overlay_heatmap, resolve_target_layer
 from .metrics import ClassificationReport, compute_metrics, confusion_matrix
 from .models import CBAM, BackboneWithCBAM, SimpleConvNet, available_models, initialize_model
 from .predict import Prediction, Predictor, load_predictor
@@ -65,6 +66,11 @@ __all__ = [
     "ClassificationReport",
     "compute_metrics",
     "confusion_matrix",
+    # explainability
+    "GradCAM",
+    "GradCAMResult",
+    "overlay_heatmap",
+    "resolve_target_layer",
     # training
     "Trainer",
     "TrainingSummary",
