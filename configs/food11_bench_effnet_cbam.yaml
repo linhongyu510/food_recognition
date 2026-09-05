@@ -1,0 +1,46 @@
+# Food-11 benchmark: EfficientNet-B0 + CBAM.
+#
+# Reproduces the numbers recorded in README > Benchmarks.
+# Expects the ML2021 HW3 Food-11 layout under data/food-11 (see Benchmarks).
+#
+# Fully supervised: the 6,786-image unlabelled pool is deliberately unused so
+# this number is a clean supervised baseline.
+
+model_name: efficientnet_b0_cbam
+num_classes: 11
+use_pretrained: true
+linear_probe: false
+dropout: 0.3
+
+train_dir: data/food-11/training/labeled
+val_dir: data/food-11/validation
+unlabeled_dir: null
+
+image_size: 224
+batch_size: 32
+num_workers: 4
+use_autoaugment: true
+
+epochs: 30
+learning_rate: 0.0005
+weight_decay: 0.0001
+label_smoothing: 0.1
+grad_clip_norm: 5.0
+scheduler: cosine
+warmup_epochs: 2
+
+device: auto
+seed: 0
+use_amp: false          # MPS autocast is unreliable; keep fp32 for reproducibility
+val_every_n_epochs: 1
+
+output_dir: runs/bench_effnet_cbam
+checkpoint_name: best.pt
+
+early_stopping:
+  enabled: true
+  patience: 8
+  min_delta: 0.0005
+
+semi_supervised:
+  enabled: false

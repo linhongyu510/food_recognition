@@ -160,6 +160,10 @@ def load_predictor(
         or (len(resolved_classes) if resolved_classes else None)
     )
     resolved_size = image_size or config.get("image_size") or 224
+    # dropout>0 wraps the head in Sequential(Dropout, Linear), which shifts the
+    # state_dict keys from "fc.weight" to "fc.1.weight". Rebuilding without it
+    # makes every checkpoint trained with dropout unloadable.
+    resolved_dropout = float(config.get("dropout") or 0.0)
 
     if not resolved_name:
         raise ValueError(
@@ -172,7 +176,10 @@ def load_predictor(
 
     # Skip downloading pretrained weights: they are immediately overwritten.
     model, _ = initialize_model(
-        resolved_name, int(resolved_num), use_pretrained=False
+        resolved_name,
+        int(resolved_num),
+        use_pretrained=False,
+        dropout=resolved_dropout,
     )
     model.load_state_dict(payload["model_state"])
 

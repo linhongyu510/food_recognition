@@ -9,9 +9,9 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 171-test suite are verified and run in CI on
-> every push. Benchmark accuracy on Food-11 / Food-101 has **not** yet been
-> re-measured for this codebase — see [Benchmarks](#benchmarks).
+> **Status.** The pipeline, CLI and 176-test suite are verified and run in CI on
+> every push. Food-11 accuracy is measured and recorded with full provenance in
+> [Benchmarks](#benchmarks); Food-101 is not yet measured.
 
 ---
 
@@ -223,6 +223,14 @@ photo.jpg
   -> 07 (0.9412)  saved cams/photo_gradcam.png
 ```
 
+Real output from the benchmarked `efficientnet_b0_cbam` model on a validation
+image of class `06` (noodles/pasta), predicted correctly at 0.9104 confidence —
+original left, overlay right. The heat sits on the pasta itself rather than the
+plate rim or background, which is what you want to confirm before trusting a
+model's accuracy number:
+
+![Grad-CAM on Food-11 noodles/pasta](docs/benchmarks/gradcam_food11_noodles.png)
+
 Pass `--class-index` to ask *"why not that other class?"* — it explains the class
 you name instead of the predicted one, which is the useful view when a model is
 confidently wrong.
@@ -347,22 +355,90 @@ count across the labelled and pseudo-labelled phases.
 
 ## Benchmarks
 
-**No accuracy numbers are published for this codebase yet.**
+Measured on this codebase. Both runs are fully supervised — the 6,786-image
+unlabelled pool is deliberately unused, so these are clean supervised baselines.
 
-Earlier revisions of this README listed 94.56% on Food-11 and 84.09% on
-Food-101. Those figures could not be traced to any training script, log or
-checkpoint in this repository, and the architecture they named
-(EfficientNet-B4 + CBAM, Food-101) was never implemented here — the original
-experiments used EfficientNet-**B0** on Food-11. They have been removed rather
-than carried forward unverified.
+| Model | Params | Val accuracy | Macro F1 | Best epoch | Train time |
+|---|---:|---:|---:|---:|---:|
+| `resnet18` | 11.2 M | **88.64%** | 0.8851 | 26 / 30 | 6.0 min |
+| `efficientnet_b0_cbam` | 4.2 M | **93.64%** | 0.9358 | 30 / 30 | 10.7 min |
 
-Reproducible benchmarks will be added here once measured, with the config,
-commit and hardware recorded alongside each number. To run your own:
+CBAM on EfficientNet-B0 beats the ResNet18 baseline by **5.0 points with 2.6x
+fewer parameters**, which is the result the attention module is there to
+produce.
+
+<details>
+<summary>Provenance</summary>
+
+| | |
+|---|---|
+| Commit | `d4ba3bc` |
+| Dataset | Food-11, ML2021 HW3 split — Kaggle `zhaopang/ml2021springhw3` v1 |
+| Train / val | 3,080 labelled (280 per class) / 660 (60 per class) |
+| Hardware | Apple M5 Pro, 18 cores, 48 GB, MPS backend |
+| Software | Python 3.12.14, torch 2.14.0, torchvision 0.29.0 |
+| Configs | `configs/food11_bench_resnet18.yaml`, `configs/food11_bench_effnet_cbam.yaml` |
+| Seed | 0 (`deterministic: true`) |
+
+Accuracy is top-1 on the validation split, read from each run's
+`metrics.json`. Both checkpoints were then re-scored through
+`food-recognition-eval` — a different code path from training — and reproduced
+the same figures.
+
+`testing/` is not used: its 3,347 images sit in a single directory with no
+labels, so validation is the only labelled held-out split.
+
+</details>
+
+<details>
+<summary>Why 30 epochs, and what the longer runs showed</summary>
+
+Both models were also run for 50 epochs. Neither improved:
+
+| Run | Epochs run | Val accuracy |
+|---|---:|---:|
+| `resnet18`, 30 ep | 30 | **88.64%** |
+| `resnet18`, 50 ep, no early stop | 50 | 87.73% |
+| `efficientnet_b0_cbam`, 30 ep | 30 | **93.64%** |
+| `efficientnet_b0_cbam`, 50 ep, no early stop | 50 | 93.48% |
+| `efficientnet_b0_cbam`, 50 ep, early stop on | 14 | 91.36% |
+
+The last row is worth noting: with `epochs: 50` and `patience: 8`, the run
+stopped at epoch 14 and scored **2.3 points worse**. Cosine annealing spends
+its middle epochs on a high learning-rate plateau, which early stopping reads
+as "no improvement" and cuts before the anneal delivers its gain. If you
+lengthen the schedule, raise `patience` with it.
+
+</details>
+
+### Reproducing
 
 ```bash
-food-recognition-train --config configs/food11_efficientnet_cbam.yaml
-cat runs/food11_effnet_cbam/metrics.json
+# Download (~918 MB) and link into place
+pip install -e ".[download]"
+python scripts/download_dataset.py
+mkdir -p data && ln -s <printed-path>/food-11 data/food-11
+
+food-recognition-train --config configs/food11_bench_effnet_cbam.yaml
+cat runs/bench_effnet_cbam/metrics.json
 ```
+
+Expect different numbers on different hardware: MPS, CUDA and CPU kernels do not
+produce bit-identical results, and cuDNN autotuning varies between GPUs. The
+seed makes a run repeatable on the *same* machine, not across machines.
+
+### The two figures that used to be here
+
+Earlier revisions claimed 94.56% on Food-11 and 84.09% on Food-101. Neither
+could be traced to any script, log or checkpoint in this repository, and the
+architecture named for the Food-101 figure (EfficientNet-B4 + CBAM) was never
+implemented — the original experiments used EfficientNet-**B0**. They were
+removed rather than carried forward unverified, and the table above replaces
+them with numbers that ship with the config, commit and hardware needed to
+check them.
+
+Food-101 remains unmeasured. `configs/food101_efficientnet_cbam.yaml` is ready;
+at 75,750 training images it is a much longer run than Food-11.
 
 ## Project layout
 
@@ -380,7 +456,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, Food-11 download, Food-101 conversion
-tests/                    # 171 tests
+tests/                    # 176 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts

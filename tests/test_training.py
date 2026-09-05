@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 import torch
+from PIL import Image
 
 from food_recognition.config import (
     EarlyStoppingConfig,
@@ -241,6 +242,63 @@ def test_predictor_roundtrip_from_checkpoint(sample_dataset: Path, tmp_path: Pat
     assert 0.0 <= prediction.confidence <= 1.0
     assert len(prediction.topk) == 3
     assert sum(prob for _, prob in prediction.topk) == pytest.approx(1.0, abs=1e-4)
+
+
+@pytest.mark.parametrize("dropout", [0.0, 0.2, 0.5])
+def test_predictor_roundtrip_survives_dropout(
+    sample_dataset: Path, tmp_path: Path, dropout: float
+):
+    """Regression: checkpoints trained with dropout could not be reloaded.
+
+    dropout>0 wraps the head in Sequential(Dropout, Linear), moving the
+    state_dict keys from "fc.weight" to "fc.1.weight". load_predictor rebuilt
+    the model without dropout, so every such checkpoint failed with
+    'Missing key(s) in state_dict: "fc.weight"'. This affected the default
+    benchmark configs, i.e. the documented happy path.
+    """
+    cfg = _tiny_cfg(sample_dataset, tmp_path / "run")
+    cfg.model_name = "resnet18"
+    cfg.dropout = dropout
+    summary = train_model(cfg)
+
+    predictor = load_predictor(summary.best_checkpoint, device="cpu")
+    image = next((sample_dataset / "validation/01").glob("*.jpg"))
+    assert predictor.predict(image).label in {"00", "01", "02"}
+
+
+def test_reloaded_model_reproduces_training_accuracy(
+    sample_dataset: Path, tmp_path: Path
+):
+    """A checkpoint that loads but predicts differently is worse than one that fails."""
+    from food_recognition.data import build_transform
+    from food_recognition.metrics import compute_metrics
+
+    cfg = _tiny_cfg(sample_dataset, tmp_path / "run")
+    cfg.model_name = "resnet18"
+    cfg.dropout = 0.3
+    summary = train_model(cfg)
+
+    predictor = load_predictor(summary.best_checkpoint, device="cpu")
+
+    val_dir = sample_dataset / "validation"
+    transform = build_transform(cfg.image_size, is_train=False)
+    images, targets = [], []
+    for class_index, class_name in enumerate(sorted(p.name for p in val_dir.iterdir())):
+        for path in sorted((val_dir / class_name).glob("*.jpg")):
+            with Image.open(path) as img:
+                images.append(transform(img.convert("RGB")))
+            targets.append(class_index)
+
+    with torch.no_grad():
+        logits = predictor.model(torch.stack(images))
+    reloaded = compute_metrics(
+        torch.tensor(targets), logits.argmax(dim=1), cfg.num_classes
+    ).accuracy
+
+    assert reloaded == pytest.approx(summary.best_accuracy, abs=0.02), (
+        f"reloaded model scored {reloaded:.4f} but training reported "
+        f"{summary.best_accuracy:.4f}"
+    )
 
 
 def test_predictor_handles_flat_directory(sample_dataset: Path, tmp_path: Path):
