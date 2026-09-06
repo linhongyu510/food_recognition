@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 201-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 205-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -409,6 +409,14 @@ Running below native resolution is a legitimate way to fit a compute budget —
 380px costs 2.7x the time per epoch here — so the warning does not override the
 setting. It exists because the accuracy loss is otherwise invisible.
 
+Native is a floor worth respecting, not a target to stop at. In the
+[resolution × architecture grid](#resolution--architecture), only B4 actually
+peaks at its native resolution: B0 is pretrained at 224px but does best at 300px,
+and B3 is pretrained at 300px but does best at 380px. Feeding a model *more*
+pixels than it was pretrained on is often worth more than switching to a larger
+backbone — so the warning fires on a real loss, but silence from it does not mean
+the resolution is optimal.
+
 ### CBAM
 
 [CBAM](https://arxiv.org/abs/1807.06521) (Woo et al., ECCV 2018) applies channel
@@ -480,13 +488,62 @@ CBAM on EfficientNet-B0 beats the ResNet18 baseline by **5.0 points with 2.6x
 fewer parameters**, which is the result the attention module is there to
 produce.
 
-The two B4 rows exist to separate two variables that are easy to conflate.
-Going B0 → B4 at a fixed 224px buys **+0.61 points for 4.3x the parameters and
-2.7x the time**; raising that same B4 to its native 380px buys a further
-**+0.76 points** and takes the total to 7.2x the B0 wall clock. Most of what B4
-has to offer on this dataset comes from the resolution it was designed for, not
-from the extra parameters alone — and B0 + CBAM remains the better accuracy-per-
-minute choice unless the last point matters more than the time.
+#### Resolution × architecture
+
+The four rows above cannot separate "bigger backbone" from "bigger input",
+because the two move together. Nine runs on an identical schedule — three
+backbones × three resolutions, differing only in `model_name` and `image_size` —
+can:
+
+| Accuracy | 224px | 300px | 380px | Native |
+|---|---:|---:|---:|---:|
+| `efficientnet_b0_cbam` (4.2 M) | 93.64% | **95.15%** | 94.85% | 224px |
+| `efficientnet_b3_cbam` (11.0 M) | 93.03% | 95.15% | **95.45%** | 300px |
+| `efficientnet_b4_cbam` (18.0 M) | 94.24% | 94.85% | **95.00%** | 380px |
+
+| Wall clock | 224px | 300px | 380px |
+|---|---:|---:|---:|
+| `efficientnet_b0_cbam` | 10.7 min | 19.0 min | 25.6 min |
+| `efficientnet_b3_cbam` | 20.5 min | 37.2 min | 51.5 min |
+| `efficientnet_b4_cbam` | 29.0 min | 48.5 min | 77.3 min |
+
+![Food-11 resolution and architecture ablation](docs/benchmarks/food11_ablation.png)
+
+Three things fall out of the grid, and two of them contradict what the four-row
+table above suggests on its own.
+
+**Resolution matters more than parameter count.** Every model gains more from
+being given more pixels than from being made larger. B0 picks up +1.52 points
+going 224px → 300px; going B0 → B4 at a fixed 224px buys +0.61 for 4.3x the
+parameters. The cheapest model at 300px (95.15%, 19.0 min) beats the largest at
+its own native 380px (95.00%, 77.3 min) — **+0.15 points for a quarter of the
+time**. If you have a fixed budget, spend it on input size before backbone size.
+
+**"Native resolution is optimal" is false here.** Only B4 peaks where it was
+pretrained. B0 is trained at 224px but does best at 300px (+1.52 over its own
+native), and B3 is trained at 300px but does best at 380px (+0.30). So the
+warning this project added in 0.5.0 is correctly aimed at *far* below native —
+B4 at 224px does lose 0.76 points — but native is a floor to respect, not a
+target to hit. Above it there is still room, at least on 224px-ish food photos
+where the dishes are large and centred.
+
+**The best cell is the middle model, not the biggest.** `efficientnet_b3_cbam`
+at 380px reaches **95.45%**, the highest of the nine, and does it in 51.5 min
+against B4@380's 77.3. B4 is never the best choice at any resolution in this
+grid: it wins at 224px only because the smaller models are starved there.
+
+The practical reading, for this dataset and schedule: **B0 + CBAM at 300px**
+(95.15%, 19 min) is the accuracy-per-minute pick, and **B3 + CBAM at 380px**
+(95.45%, 51.5 min) is the one to reach for when the last few tenths matter.
+Neither is the configuration the original claim named.
+
+Caveats worth stating: this is one seed per cell on a 660-image validation
+split, where one image is 0.15 points — the same size as the B0@300 vs B4@380
+gap, so treat those two as tied rather than ranked. The 3,080-image training set
+is small enough that the larger backbones are plausibly data-limited rather than
+capacity-limited, which is the most likely reason B4 never pulls ahead. All nine
+checkpoints were re-scored through `food-recognition-eval` and reproduced their
+figures to six decimal places across all 660 images.
 
 Grad-CAM from the 380px B4 model on a validation noodle plate, predicted at
 0.9338 — heat on the pasta and its garnish, with the plate rim cold:
@@ -522,11 +579,11 @@ the crust and pepperoni, not the box:
 
 | | Food-11 | Food-101 |
 |---|---|---|
-| Commit | `d4ba3bc` (resnet18, b0) / `8feb7a9` (b4) | `ac37bb4` (b0) / `8feb7a9` (b4) |
+| Commit | `d4ba3bc` (resnet18, b0) / `8feb7a9` (b4) / `70a9271` (ablation grid) | `ac37bb4` (b0) / `8feb7a9` (b4) |
 | Dataset | ML2021 HW3 split — Kaggle `zhaopang/ml2021springhw3` v1 | Official split via [`ethz/food101`](https://huggingface.co/datasets/ethz/food101) |
 | Train / val | 3,080 labelled (280/class) / 660 (60/class) | 75,750 (750/class) / 25,250 (250/class) |
-| Config | `configs/food11_bench_resnet18.yaml`, `configs/food11_bench_effnet_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam_224.yaml` | `configs/food101_bench_effnet_cbam.yaml`, `configs/food101_bench_effnet_b4_cbam.yaml` |
-| Epoch cost | 11.9 s / 21.5 s / 58 s / 155 s | 8.5 min / 22.4 min |
+| Config | `configs/food11_bench_resnet18.yaml`, `configs/food11_bench_effnet_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam_224.yaml`, plus `configs/food11_abl_effnet_b{0,3,4}_cbam_{224,300,380}.yaml` for the six ablation cells | `configs/food101_bench_effnet_cbam.yaml`, `configs/food101_bench_effnet_b4_cbam.yaml` |
+| Epoch cost | 11.9 s / 21.5 s / 58 s / 155 s; ablation 21–155 s depending on cell | 8.5 min / 22.4 min |
 
 Common to all runs: Apple M5 Pro (18 cores, 48 GB) on the MPS backend, Python
 3.12.14, torch 2.14.0, torchvision 0.29.0, seed 0 with `deterministic: true`,
@@ -534,8 +591,9 @@ and `use_amp: false` because autocast is unreliable on MPS.
 
 Accuracy is top-1 on the validation split, read from each run's `metrics.json`.
 Every checkpoint was then re-scored through `food-recognition-eval` — a
-different code path from training — and reproduced the same figures; Food-101
-matched to six decimal places across all 25,250 images.
+different code path from training — and reproduced the same figures. All nine
+ablation cells matched to six decimal places across all 660 Food-11 images, and
+Food-101 across all 25,250.
 
 Two caveats stated rather than buried. The Food-11 runs use the **3,080-image
 HW3 split**, not the full 9,866-image Food-11, so they are not directly
@@ -602,6 +660,14 @@ food-recognition-train --config configs/food11_bench_effnet_cbam.yaml
 food-recognition-train --config configs/food11_bench_effnet_b4_cbam.yaml      # 380px
 food-recognition-train --config configs/food11_bench_effnet_b4_cbam_224.yaml  # 224px control
 
+# The 3x3 resolution x architecture grid (six further cells, ~3.4 h total)
+for m in b0 b3 b4; do for px in 224 300 380; do
+  food-recognition-train --config configs/food11_abl_effnet_${m}_cbam_${px}.yaml
+done; done
+python scripts/plot_ablation.py \
+    --grid docs/benchmarks/food11_ablation_grid.json \
+    --output docs/benchmarks/food11_ablation.png
+
 # Food-101 (~4.8 GB; see the Food-101 section above for why the mirror)
 pip install -e ".[food101]"
 python scripts/food101_from_parquet.py --output ~/data/food-101
@@ -628,6 +694,13 @@ The B4 gap has since been closed on both datasets. `efficientnet_b4_cbam` is now
 benchmarked on Food-11 at 224px and its native 380px, reaching **95.00%**, and on
 Food-101 at 224px, reaching **89.11%**.
 
+The [resolution × architecture grid](#resolution--architecture) then went further
+and found that this architecture is *not* the best of the nine cells on Food-11:
+`efficientnet_b3_cbam` at 380px reaches **95.45%** in two thirds of the time, and
+even `efficientnet_b0_cbam` at 300px edges B4 out at a quarter of the cost. So
+the configuration the original claim named turns out not to be the one worth
+recommending here.
+
 Neither old figure is thereby confirmed. The Food-101 measurement is **5.0 points
 above** the 84.09% that was claimed for this architecture, so the claim is not
 reproduced so much as exceeded — which is not evidence about where the original
@@ -651,8 +724,8 @@ src/food_recognition/     # the package
 └── cli.py                # train / eval / predict / gradcam entry points
 
 configs/                  # YAML configs
-scripts/                  # sample data, dataset download/conversion, HF publishing
-tests/                    # 201 tests
+scripts/                  # sample data, dataset prep, HF publishing, ablation plot
+tests/                    # 205 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
@@ -668,7 +741,7 @@ linting, and still contain hard-coded `cuda:0` device assignments.
 ```bash
 pip install -e ".[dev]"
 
-pytest -q                                    # 201 tests
+pytest -q                                    # 205 tests
 pytest -q --cov=food_recognition             # with coverage
 ruff check src tests scripts                 # lint
 ```

@@ -5,6 +5,47 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-06
+
+### Added
+
+- **A 3×3 resolution × architecture ablation on Food-11** — `efficientnet_b0`,
+  `b3` and `b4` with CBAM, each at 224px, 300px and 380px, nine runs on an
+  identical 30-epoch schedule differing only in `model_name` and `image_size`.
+  Six new cells join the three already measured. All nine were re-scored through
+  `food-recognition-eval` and reproduced their figures to six decimal places
+  across all 660 validation images.
+- `configs/food11_abl_effnet_b{0,3,4}_cbam_{224,300,380}.yaml` reproduce the new
+  cells; `docs/benchmarks/food11_ablation_grid.json` holds the assembled grid and
+  `scripts/plot_ablation.py` renders it into `docs/benchmarks/food11_ablation.png`
+  from the grid file rather than transcribed numbers.
+
+### Changed
+
+- **Corrected the interpretation the earlier B4 rows had suggested.** Two of the
+  grid's three findings contradict what 0.5.0 concluded from four rows alone:
+  - **Resolution beats parameter count.** B0 gains +1.52 points from 224px →
+    300px, while B0 → B4 at a fixed 224px buys +0.61 for 4.3x the parameters. The
+    smallest model at 300px (95.15%, 19.0 min) *beats* the largest at its native
+    380px (95.00%, 77.3 min) — +0.15 points for a quarter of the time.
+  - **"Native resolution is optimal" is false here.** Only B4 peaks where it was
+    pretrained. B0 is pretrained at 224px but peaks at 300px (+1.52 over its own
+    native); B3 is pretrained at 300px but peaks at 380px (+0.30). The 0.5.0
+    warning is still correctly aimed at *far* below native, but native is a floor,
+    not a target — silence from the warning does not mean the resolution is
+    optimal, and the README now says so.
+  - **The best cell is the middle model.** `efficientnet_b3_cbam` at 380px
+    reaches **95.45%**, the highest of the nine, in two thirds of B4@380's time.
+    B4 is never the best choice at any resolution in this grid.
+- The note on the two removed claims records that the architecture the Food-101
+  figure named is not the one worth recommending on Food-11: it places fifth of
+  nine, behind two configurations that are cheaper *and* more accurate.
+- Stated caveats rather than burying them: one seed per cell on a 660-image split
+  where a single image is 0.15 points, so B0@300 and B4@380 are tied rather than
+  ranked; and the 3,080-image training set is small enough that the larger
+  backbones are plausibly data-limited, the likeliest reason B4 never pulls ahead.
+- Test suite grew from 201 to 205 tests.
+
 ## [0.6.0] - 2026-09-06
 
 ### Added
