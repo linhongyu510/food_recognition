@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 188-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 190-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -426,14 +426,22 @@ Grad-CAM from the 380px B4 model on a validation noodle plate, predicted at
 
 ### Food-101
 
-| Model | Params | Val accuracy | Macro F1 | Best epoch | Train time |
-|---|---:|---:|---:|---:|---:|
-| `efficientnet_b0_cbam` | 4.3 M | **88.70%** | 0.8865 | 29 / 30 | 254 min |
+| Model | Input | Params | Val accuracy | Macro F1 | Best epoch | Train time |
+|---|---:|---:|---:|---:|---:|---:|
+| `efficientnet_b0_cbam` | 224px | 4.3 M | **88.70%** | 0.8865 | 29 / 30 | 254 min |
+| `efficientnet_b4_cbam` | 224px | 18.1 M | **89.11%** | 0.8907 | 24 / 30 | 671 min |
 
-101 classes over the official 75,750 / 25,250 split. Per-class F1 spans
-`edamame` at 1.000 down to `steak` at 0.588 — the confusable meat and dessert
-classes are where the errors concentrate, and the full per-class table is in
+101 classes over the official 75,750 / 25,250 split. Both models find the same
+classes hard: `steak` is the worst for each (F1 0.588 for B0, 0.636 for B4) while
+`edamame` is near-perfect (1.000 and 0.994). The confusable meat and dessert
+classes are where the errors concentrate, and the full per-class tables are in
 [`docs/benchmarks/`](docs/benchmarks/).
+
+B4 repeats the pattern from Food-11 in a smaller form: **+0.41 points for 4.2x
+the parameters and 2.6x the time**. Both rows are at 224px so the difference is
+the architecture alone; B4's native 380px was measured at 42.1 ms/img here, which
+puts a 30-epoch run near 27 hours, and was skipped on cost rather than tested and
+rejected.
 
 Grad-CAM from this model on a validation pizza, predicted at 0.9651 — heat on
 the crust and pepperoni, not the box:
@@ -445,11 +453,11 @@ the crust and pepperoni, not the box:
 
 | | Food-11 | Food-101 |
 |---|---|---|
-| Commit | `d4ba3bc` (resnet18, b0) / `8feb7a9` (b4) | `ac37bb4` |
+| Commit | `d4ba3bc` (resnet18, b0) / `8feb7a9` (b4) | `ac37bb4` (b0) / `8feb7a9` (b4) |
 | Dataset | ML2021 HW3 split — Kaggle `zhaopang/ml2021springhw3` v1 | Official split via [`ethz/food101`](https://huggingface.co/datasets/ethz/food101) |
 | Train / val | 3,080 labelled (280/class) / 660 (60/class) | 75,750 (750/class) / 25,250 (250/class) |
-| Config | `configs/food11_bench_resnet18.yaml`, `configs/food11_bench_effnet_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam_224.yaml` | `configs/food101_bench_effnet_cbam.yaml` |
-| Epoch cost | 11.9 s / 21.5 s / 58 s / 155 s | 8.5 min |
+| Config | `configs/food11_bench_resnet18.yaml`, `configs/food11_bench_effnet_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam.yaml`, `configs/food11_bench_effnet_b4_cbam_224.yaml` | `configs/food101_bench_effnet_cbam.yaml`, `configs/food101_bench_effnet_b4_cbam.yaml` |
+| Epoch cost | 11.9 s / 21.5 s / 58 s / 155 s | 8.5 min / 22.4 min |
 
 Common to all runs: Apple M5 Pro (18 cores, 48 GB) on the MPS backend, Python
 3.12.14, torch 2.14.0, torchvision 0.29.0, seed 0 with `deterministic: true`,
@@ -494,6 +502,26 @@ point and a half.
 
 </details>
 
+<details>
+<summary>A checkpointing bug the B4 runs exposed</summary>
+
+The Food-101 B4 run is the reason `min_delta` no longer gates checkpoint saving.
+
+`min_delta` exists so early-stopping patience does not reset on noise, but the
+same threshold was also deciding whether to write `best.pt`. On that run epoch 27
+scored 0.891366 against a saved best of 0.891129 from epoch 24 — an improvement of
+0.000238, below the configured `min_delta` of 0.0005. So the better weights were
+discarded, and `metrics.json` disagreed with the `history.json` written beside it.
+
+Checkpointing is now driven by any strict improvement, while `min_delta` continues
+to control patience, with regression tests covering both halves. The five figures
+published before this was found were each re-checked against their history files
+and none were affected; the B4 Food-101 row reports **89.11%** from the epoch-24
+checkpoint that was actually saved and independently re-scored, not the 89.14%
+that appears in the history.
+
+</details>
+
 ### Reproducing
 
 ```bash
@@ -502,12 +530,15 @@ pip install -e ".[download]"
 python scripts/download_dataset.py
 mkdir -p data && ln -s <printed-path>/food-11 data/food-11
 food-recognition-train --config configs/food11_bench_effnet_cbam.yaml
+food-recognition-train --config configs/food11_bench_effnet_b4_cbam.yaml      # 380px
+food-recognition-train --config configs/food11_bench_effnet_b4_cbam_224.yaml  # 224px control
 
 # Food-101 (~4.8 GB; see the Food-101 section above for why the mirror)
 pip install -e ".[food101]"
 python scripts/food101_from_parquet.py --output ~/data/food-101
 python scripts/prepare_food101.py --source ~/data/food-101 --output data/food-101
 food-recognition-train --config configs/food101_bench_effnet_cbam.yaml
+food-recognition-train --config configs/food101_bench_effnet_b4_cbam.yaml
 ```
 
 Expect different numbers on different hardware: MPS, CUDA and CPU kernels do not
@@ -524,16 +555,17 @@ They were removed rather than carried forward unverified, and the tables above
 replace them with numbers that ship with the config, commit and hardware needed
 to check them.
 
-The B4 gap has since been closed on Food-11: `efficientnet_b4_cbam` is now
-benchmarked at both 224px and its native 380px, reaching **95.00%** — which is
-above the old 94.56% claim, but on the 3,080-image HW3 split rather than the full
-9,866-image Food-11, so it still is not the same measurement.
+The B4 gap has since been closed on both datasets. `efficientnet_b4_cbam` is now
+benchmarked on Food-11 at 224px and its native 380px, reaching **95.00%**, and on
+Food-101 at 224px, reaching **89.11%**.
 
-Neither old figure is contradicted by the new ones, because neither is directly
-comparable. On Food-101 the old text named B4 while the measured 88.70% comes
-from B0 + CBAM; on Food-11 the split differs as described above. Both old numbers
-stay unverified rather than being retro-fitted to whichever new result sits
-closest.
+Neither old figure is thereby confirmed. The Food-101 measurement is **5.0 points
+above** the 84.09% that was claimed for this architecture, so the claim is not
+reproduced so much as exceeded — which is not evidence about where the original
+number came from. The Food-11 measurement is above the old 94.56%, but on the
+3,080-image HW3 split rather than full Food-11, so it is not the same
+measurement. Both old numbers stay unverified rather than being retro-fitted to
+whichever new result sits closest.
 
 ## Project layout
 
@@ -551,7 +583,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, Food-11 download, Food-101 conversion
-tests/                    # 188 tests
+tests/                    # 190 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts

@@ -164,6 +164,9 @@ class Trainer:
             min_delta=cfg.early_stopping.min_delta,
             mode="max",
         )
+        # Tracked separately from the early stopper, which applies min_delta.
+        # See the checkpointing branch in fit() for why these must not share.
+        self._best_val: float | None = None
 
         self.train_transform = build_transform(
             cfg.image_size, is_train=True, use_autoaugment=cfg.use_autoaugment
@@ -224,8 +227,21 @@ class Trainer:
                 val_acc = report.accuracy
                 val_f1 = report.macro_f1
 
-                is_best = self.early_stopper.update(val_acc, epoch)
+                # Checkpoint on any strict improvement, and keep min_delta for
+                # patience only. Sharing one threshold between the two means a
+                # genuinely better model gets thrown away: on the Food-101 B4
+                # run, epoch 27 beat the saved best by 0.000238 against a
+                # min_delta of 0.0005, so best.pt kept the weaker epoch-24
+                # weights and metrics.json disagreed with the history it was
+                # written beside.
+                improved = self._best_val is None or val_acc > self._best_val
+                # Still consulted, so early-stopping behaviour is unchanged: it
+                # is the thing min_delta was added for.
+                self.early_stopper.update(val_acc, epoch)
+
+                is_best = improved
                 if is_best:
+                    self._best_val = val_acc
                     self.summary.best_accuracy = val_acc
                     self.summary.best_epoch = epoch
                     self.summary.final_report = report

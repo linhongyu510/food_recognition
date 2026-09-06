@@ -7,35 +7,53 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [0.5.0] - 2026-09-06
 
+### Fixed
+
+- **`min_delta` no longer gates checkpoint saving**, only early-stopping patience.
+  The two shared one threshold, so an epoch that improved by less than `min_delta`
+  was not written to `best.pt`. Caught on the Food-101 B4 run: epoch 27 scored
+  0.891366 against epoch 24's saved 0.891129 — a gain of 0.000238 under a
+  `min_delta` of 0.0005 — so the better weights were discarded and `metrics.json`
+  disagreed with the `history.json` beside it. Best-checkpoint tracking is now
+  driven by any strict improvement, while `min_delta` still controls patience;
+  both halves have regression tests. The five previously published figures were
+  each re-checked against their history files and none were affected.
+
 ### Added
 
-- **Measured EfficientNet-B4 + CBAM benchmarks on Food-11**, the architecture a
-  removed performance claim had named but which had never been trained in this
-  repository. Two runs, so the architecture change and the resolution change can
-  be told apart: **94.24%** at 224px and **95.00%** at its native 380px, against
-  93.64% for `efficientnet_b0_cbam` at 224px. Going B0 → B4 at fixed 224px is
-  worth +0.61 points for 4.3x the parameters and 2.7x the time; the move to 380px
-  adds a further +0.76. Both checkpoints were re-scored through
-  `food-recognition-eval` and reproduced their figures to six decimal places
-  across all 660 validation images.
-- `configs/food11_bench_effnet_b4_cbam.yaml` (380px, native) and
-  `configs/food11_bench_effnet_b4_cbam_224.yaml` (224px control) reproduce them.
+- **Measured EfficientNet-B4 + CBAM benchmarks**, the architecture a removed
+  performance claim had named but which had never been trained in this repository.
+  On Food-11, two runs so the architecture and resolution changes can be told
+  apart: **94.24%** at 224px and **95.00%** at its native 380px, against 93.64%
+  for `efficientnet_b0_cbam`. On Food-101 at matched 224px: **89.11%** against
+  88.70% for B0. Going B0 → B4 at fixed resolution is worth +0.61 points on
+  Food-11 and +0.41 on Food-101, for roughly 4.2x the parameters and 2.6-2.7x the
+  time; the move to 380px on Food-11 adds a further +0.76. Every checkpoint was
+  re-scored through `food-recognition-eval` and reproduced its figures to six
+  decimal places — across all 660 Food-11 and all 25,250 Food-101 images.
+- `configs/food11_bench_effnet_b4_cbam.yaml` (380px, native),
+  `configs/food11_bench_effnet_b4_cbam_224.yaml` (224px control) and
+  `configs/food101_bench_effnet_b4_cbam.yaml` reproduce them.
 - A warning when `image_size` sits well below the backbone's native resolution.
   `image_size` defaults to 224 while EfficientNet-B3 and B4 were trained at 300px
   and 380px, so the default silently ran B4 on 35% of its intended pixels — worth
   0.76 points on Food-11 — with nothing in the output to say so. The trainer had
   been discarding the native size that `initialize_model` already returned. The
   setting is not overridden, since running below native resolution is a valid way
-  to fit a compute budget.
-- `docs/benchmarks/` gains `metrics.json` and `history.json` for both B4 runs,
-  plus a Grad-CAM overlay from the 380px model.
+  to fit a compute budget: B4 at 380px on Food-101 was measured at 42.1 ms/img,
+  which puts a 30-epoch run near 27 hours against the 11.2 hours 224px took.
+- `docs/benchmarks/` gains `metrics.json` and `history.json` for all three B4
+  runs, plus a Grad-CAM overlay from the 380px Food-11 model.
 
 ### Changed
 
-- README documents the resolution trade-off under Models, and the note on the two
-  removed figures now records that the B4 gap has been closed on Food-11 — while
-  keeping both old numbers marked unverified, since neither is a like-for-like
-  comparison.
+- README documents the resolution trade-off under Models, records the
+  checkpointing bug and its blast radius, and updates the note on the two removed
+  figures: the B4 gap is now closed on both datasets, and the Food-101
+  measurement lands 5.0 points *above* the 84.09% once claimed for that
+  architecture. Both old numbers stay marked unverified rather than being
+  retro-fitted to the nearest new result.
+- Test suite grew from 185 to 190 tests.
 
 ## [0.4.0] - 2026-09-05
 
