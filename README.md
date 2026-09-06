@@ -346,21 +346,53 @@ Checkpoints here run 16–73 MB, well inside the Hub's limits.
 
 ### Published weights
 
-The six checkpoints behind the benchmark tables, published from the runs above:
+Every cell of the [resolution × architecture grid](#resolution--architecture) is
+published, plus both Food-101 models — so every number in the benchmark tables
+has a downloadable checkpoint behind it.
 
-| Model | Dataset | Input | Accuracy | Size | Repo |
-|---|---|---:|---:|---:|---|
-| `b3_cbam` | Food-11 | 380px | **95.45%** | 45 MB | [`hylin16/food-recognition-food11-effnet-b3-cbam-380`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b3-cbam-380) |
-| `b0_cbam` | Food-11 | 300px | 95.15% | 17 MB | [`hylin16/food-recognition-food11-effnet-b0-cbam-300`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b0-cbam-300) |
-| `b4_cbam` | Food-11 | 380px | 95.00% | 73 MB | [`hylin16/food-recognition-food11-effnet-b4-cbam-380`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b4-cbam-380) |
-| `b0_cbam` | Food-11 | 224px | 93.64% | 17 MB | [`hylin16/food-recognition-food11-effnet-b0-cbam`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b0-cbam) |
-| `b4_cbam` | Food-101 | 224px | **89.11%** | 73 MB | [`hylin16/food-recognition-food101-effnet-b4-cbam`](https://huggingface.co/hylin16/food-recognition-food101-effnet-b4-cbam) |
-| `b0_cbam` | Food-101 | 224px | 88.70% | 18 MB | [`hylin16/food-recognition-food101-effnet-b0-cbam`](https://huggingface.co/hylin16/food-recognition-food101-effnet-b0-cbam) |
+Food-11, ordered by accuracy:
 
-The first two are the picks from the [ablation grid](#resolution--architecture):
-B3@380 for accuracy, B0@300 for accuracy per minute. Each was re-downloaded from
-the Hub into a clean cache and re-scored to confirm the uploaded bytes reproduce
-the accuracy on the card.
+| Model | Input | Accuracy | Size | Repo |
+|---|---:|---:|---:|---|
+| `b3_cbam` | 380px | **95.45%** | 45 MB | [`food11-effnet-b3-cbam-380`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b3-cbam-380) |
+| `b0_cbam` | 300px | **95.15%** | 17 MB | [`food11-effnet-b0-cbam-300`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b0-cbam-300) |
+| `b3_cbam` | 300px | 95.15% | 45 MB | [`food11-effnet-b3-cbam-300`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b3-cbam-300) |
+| `b4_cbam` | 380px | 95.00% | 73 MB | [`food11-effnet-b4-cbam-380`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b4-cbam-380) |
+| `b0_cbam` | 380px | 94.85% | 17 MB | [`food11-effnet-b0-cbam-380`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b0-cbam-380) |
+| `b4_cbam` | 300px | 94.85% | 73 MB | [`food11-effnet-b4-cbam-300`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b4-cbam-300) |
+| `b4_cbam` | 224px | 94.24% | 73 MB | [`food11-effnet-b4-cbam-224`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b4-cbam-224) |
+| `b0_cbam` | 224px | 93.64% | 17 MB | [`food11-effnet-b0-cbam`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b0-cbam) |
+| `b3_cbam` | 224px | 93.03% | 45 MB | [`food11-effnet-b3-cbam-224`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b3-cbam-224) |
+
+Food-101:
+
+| Model | Input | Accuracy | Size | Repo |
+|---|---:|---:|---:|---|
+| `b4_cbam` | 224px | **89.11%** | 73 MB | [`food101-effnet-b4-cbam`](https://huggingface.co/hylin16/food-recognition-food101-effnet-b4-cbam) |
+| `b0_cbam` | 224px | 88.70% | 18 MB | [`food101-effnet-b0-cbam`](https://huggingface.co/hylin16/food-recognition-food101-effnet-b0-cbam) |
+
+All repo names are prefixed `hylin16/food-recognition-`. The bolded Food-11 rows
+are the two picks: B3@380 for accuracy, B0@300 for accuracy per minute. The
+224px B0 repo carries no resolution suffix because it was published first and is
+linked from elsewhere; it is the 224px cell.
+
+Publishing the whole grid rather than only the winners is deliberate — the
+grid's value is in the comparison, and the cells that *lost* are what make the
+resolution finding checkable. Every checkpoint was re-downloaded from the Hub
+into a clean cache and re-scored to confirm the uploaded bytes reproduce the
+accuracy on its card.
+
+`scripts/publish_all_runs.sh` republishes the whole set in one go. Runs are not
+in version control, so it takes the directory holding the `bench/`, `abl/` and
+`f101/` trees as its first argument:
+
+```bash
+hf auth login                                    # needs a WRITE token
+scripts/publish_all_runs.sh ~/work hylin16       # add --dry-run to preview
+```
+
+It reports how many of the eleven it published and exits non-zero if any run was
+missing, so a wrong path fails loudly instead of silently publishing a subset.
 
 Loading one takes no knowledge of its architecture — the checkpoint carries its
 own `model_name`, `image_size` and class names:
