@@ -5,6 +5,35 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-09-06
+
+### Added
+
+- **Published the remaining five grid cells**, so all nine cells of the
+  resolution × architecture grid now have downloadable weights: `b0@380`,
+  `b3@224`, `b3@300`, `b4@224` and `b4@300` join the four already on the Hub.
+  Every Food-11 number in the benchmark tables now has a checkpoint behind it.
+  Publishing the losing cells is the point — they are what make the resolution
+  finding checkable by someone who did not run it.
+- `scripts/publish_all_runs.sh` replaces the ad-hoc upload script and is now in
+  version control. Runs are gitignored, so it takes the runs root as an argument
+  rather than assuming a layout, reports how many of the eleven it published, and
+  exits non-zero when a run is missing so a wrong path fails loudly instead of
+  quietly publishing a subset.
+
+### Verified
+
+- All 11 live repos were checked against their local `metrics.json`: weights
+  present and non-trivial, repo public, licence correct (`mit` for Food-11,
+  `other` for Food-101), and `model-index` accuracy and macro-F1 matching to
+  floating-point equality.
+- The five new checkpoints were re-downloaded **unauthenticated** into a clean
+  cache and re-scored through `food-recognition-eval`, each reproducing its
+  accuracy exactly across all 660 validation images.
+- The full 3×3 grid was reconstructed from Hub metadata alone and diffed against
+  `docs/benchmarks/food11_ablation_grid.json` — 9 of 9 cells identical.
+- All 11 `huggingface.co` links in the README return 200 anonymously.
+
 ## [0.7.1] - 2026-09-06
 
 ### Added
