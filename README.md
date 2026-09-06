@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 190-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 201-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -23,6 +23,8 @@ evaluation and inference.
 - [Training](#training)
 - [Evaluation and inference](#evaluation-and-inference)
 - [Explaining predictions (Grad-CAM)](#explaining-predictions-grad-cam)
+- [Demo app](#demo-app)
+- [Publishing weights to the Hugging Face Hub](#publishing-weights-to-the-hugging-face-hub)
 - [Python API](#python-api)
 - [Models](#models)
 - [Configuration](#configuration)
@@ -278,6 +280,73 @@ docstring marks `register_backward_hook` as deprecated, warning that "the
 behavior of this function will change in future versions") and resizes with
 `torch.nn.functional.interpolate`, so **OpenCV is not a dependency**. The
 colormap is computed in NumPy, so matplotlib is not required either.
+
+## Demo app
+
+A Gradio UI wrapping the same `Predictor` and `GradCAM` the CLI uses — upload a
+photo, get top-k predictions and the heatmap side by side:
+
+```bash
+pip install -e ".[app]"
+python app.py --checkpoint runs/food11_effnet_cbam/checkpoints/best.pt
+```
+
+Or run it straight from a checkpoint published on the Hub, with no local
+training:
+
+```bash
+python app.py --hf-repo <user>/food-recognition-food11-effnet-b0-cbam
+```
+
+![The demo app classifying a validation image](docs/demo_app.png)
+
+It runs on CPU without a GPU. Measured single-image latency on 2 threads, which
+is what a free Hugging Face *CPU Basic* Space gets:
+
+| Model | Input | Latency |
+| --- | ---: | ---: |
+| `efficientnet_b0_cbam` (11 classes) | 224px | 64 ms |
+| `efficientnet_b4_cbam` (101 classes) | 224px | 180 ms |
+| `efficientnet_b4_cbam` (11 classes) | 380px | 221 ms |
+
+Grad-CAM roughly doubles that, since the heatmap needs a backward pass. The app
+loads one checkpoint at startup and reads its architecture, resolution and class
+names from the file, so the same command works for any run.
+
+Deploying it as a Hugging Face Space is the same file plus a `README.md` header;
+note that Gradio Spaces now
+[require a paid plan](https://huggingface.co/docs/hub/spaces-overview), with an
+exception for up to two ZeroGPU Spaces on a free personal account. Set
+`FR_HF_REPO` (or `FR_CHECKPOINT`) as a Space variable instead of passing flags.
+
+## Publishing weights to the Hugging Face Hub
+
+`scripts/publish_to_hf.py` uploads a run's checkpoint with a model card
+generated from that run's own `metrics.json` and embedded config, so the
+published numbers cannot drift from what was measured:
+
+```bash
+pip install -e ".[app]"
+huggingface-cli login
+
+python scripts/publish_to_hf.py \
+    --run runs/food11_effnet_cbam \
+    --repo-id <user>/food-recognition-food11-effnet-b0-cbam \
+    --commit "$(git rev-parse --short HEAD)" \
+    --dry-run          # render the card without uploading
+```
+
+The card carries the accuracy, macro F1, checkpoint epoch, wall clock, hardest
+and easiest class, the full training configuration, and a limitations section.
+Checkpoints here run 16–73 MB, well inside the Hub's limits.
+
+**On dataset licensing.** Food-101 is not permissively licensed: the images come
+from Foodspotting and are not ETH Zurich's property, with the dataset terms
+allowing scientific fair use and requiring anything further to be negotiated
+with the picture owners. Weights trained on it are a derivative work, so the
+script defaults a 101-class model's card to `license: other` and appends the
+dataset's terms rather than letting a permissive default imply more freedom than
+exists. Food-11 models default to MIT, matching this repository.
 
 ## Python API
 
@@ -582,8 +651,8 @@ src/food_recognition/     # the package
 └── cli.py                # train / eval / predict / gradcam entry points
 
 configs/                  # YAML configs
-scripts/                  # sample data, Food-11 download, Food-101 conversion
-tests/                    # 190 tests
+scripts/                  # sample data, dataset download/conversion, HF publishing
+tests/                    # 201 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
@@ -599,7 +668,7 @@ linting, and still contain hard-coded `cuda:0` device assignments.
 ```bash
 pip install -e ".[dev]"
 
-pytest -q                                    # 171 tests
+pytest -q                                    # 201 tests
 pytest -q --cov=food_recognition             # with coverage
 ruff check src tests scripts                 # lint
 ```

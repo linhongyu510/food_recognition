@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "food-recognition"
-version = "0.5.0"
+version = "0.6.0"
 description = "Food image classification with PyTorch: CBAM attention, self-training and reproducible CLI workflows"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -37,6 +37,7 @@ dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.6"]
 viz = ["matplotlib>=3.5"]
 download = ["kagglehub>=0.2"]
 food101 = ["pyarrow>=14.0"]
+app = ["gradio>=4.0", "huggingface_hub>=0.23"]
 
 [project.urls]
 Homepage = "https://github.com/linhongyu510/food_recognition"

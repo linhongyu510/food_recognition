@@ -6,6 +6,7 @@ include README.md
 include LICENSE
 include CHANGELOG.md
 include CONTRIBUTING.md
+include app.py
 recursive-include configs *.yaml
 recursive-include scripts *.py
 recursive-include tests *.py

@@ -5,6 +5,46 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-09-06
+
+### Added
+
+- **A Gradio demo app** (`app.py`) wrapping the same `Predictor` and `GradCAM`
+  the CLI uses, rather than a parallel inference path: upload a photo, get top-k
+  predictions and the heatmap beside them. It loads one checkpoint at startup and
+  reads the architecture, resolution and class names from the file, so the same
+  command works for any run. Runs on CPU — measured on 2 threads, which is what
+  a free Hugging Face *CPU Basic* Space gets: 64 ms/image for
+  `efficientnet_b0_cbam` at 224px, 180 ms for B4 at 224px, 221 ms for B4 at
+  380px, with Grad-CAM roughly doubling each. Point it at a local checkpoint
+  (`--checkpoint`) or one on the Hub (`--hf-repo`); as a Space, it reads
+  `FR_CHECKPOINT` / `FR_HF_REPO` from the environment instead.
+- **`scripts/publish_to_hf.py`** uploads a run's checkpoint to the Hugging Face
+  Hub with a model card generated from that run's own `metrics.json` and
+  embedded config — accuracy, macro F1, checkpoint epoch, wall clock, hardest
+  and easiest class, full training configuration, and a limitations section — so
+  a published number cannot drift from what was measured. `--dry-run` renders the
+  card without contacting the Hub.
+- The card defaults a 101-class model to `license: other` and appends Food-101's
+  terms, since that dataset permits scientific fair use only and the images are
+  not ETH Zurich's property; weights trained on it are a derivative work. Food-11
+  models default to MIT. A permissive default is not allowed to imply more
+  freedom than the data grants.
+- New `app` extra (`pip install -e ".[app]"`) pulling in gradio and
+  huggingface_hub, and now installed in CI so the new tests actually run there.
+
+### Changed
+
+- README documents the demo app and the Hub publishing path, including the
+  measured CPU latencies and the fact that Gradio Spaces now require a paid plan
+  (with a two-Space ZeroGPU exception on free personal accounts).
+- `app.py` ships in the sdist, alongside the configs and scripts already there.
+- Test suite grew from 190 to 201 tests.
+
+### Fixed
+
+- The Development section still advertised 171 tests, four counts out of date.
+
 ## [0.5.0] - 2026-09-06
 
 ### Fixed
