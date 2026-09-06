@@ -369,3 +369,144 @@ def test_early_stopper_min_delta_ignores_tiny_gains():
 def test_early_stopper_rejects_bad_mode():
     with pytest.raises(ValueError, match="mode"):
         EarlyStopper(mode="sideways")
+
+
+def test_warns_when_image_size_is_far_below_native(
+    sample_dataset: Path, tmp_path: Path, caplog
+):
+    """Training b4 at 224 quietly wastes the backbone; say so.
+
+    Uses efficientnet_b3 (native 300px) rather than b4 to keep the test cheap:
+    the warning is driven by the registry's declared native size, not by which
+    model it is, and use_pretrained stays False so no weights are downloaded.
+    """
+    cfg = _tiny_cfg(
+        sample_dataset,
+        tmp_path / "run",
+        model_name="efficientnet_b3",
+        image_size=224,
+        epochs=1,
+    )
+    with caplog.at_level("WARNING"):
+        Trainer(cfg)
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    hits = [w for w in warnings if "below the native" in w]
+    assert hits, f"expected a resolution warning, got {warnings}"
+    # The message has to name the fix, not just complain.
+    assert "300" in hits[0] and "efficientnet_b3" in hits[0]
+
+
+def test_no_resolution_warning_at_native_size(
+    sample_dataset: Path, tmp_path: Path, caplog
+):
+    """A model trained at its designed resolution must stay quiet."""
+    cfg = _tiny_cfg(
+        sample_dataset,
+        tmp_path / "run",
+        model_name="resnet18",
+        image_size=224,
+        epochs=1,
+    )
+    with caplog.at_level("WARNING"):
+        Trainer(cfg)
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert not [w for w in warnings if "below the native" in w], warnings
+
+
+def test_no_resolution_warning_for_simple_cnn(
+    sample_dataset: Path, tmp_path: Path, caplog
+):
+    """simple_cnn has no pretrained resolution to respect, so 32px is fine."""
+    cfg = _tiny_cfg(sample_dataset, tmp_path / "run", image_size=32, epochs=1)
+    with caplog.at_level("WARNING"):
+        Trainer(cfg)
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert not [w for w in warnings if "below the native" in w], warnings
+
+
+def test_checkpoint_saved_on_any_improvement_not_gated_by_min_delta(
+    sample_dataset: Path, tmp_path: Path, monkeypatch
+):
+    """best.pt must hold the best epoch, even if it only just won.
+
+    Regression test. min_delta exists to stop early-stopping patience from
+    resetting on noise, but it used to gate checkpoint saving too, so an epoch
+    that improved by less than min_delta was silently discarded and best.pt kept
+    weaker weights. Observed on a real Food-101 run: epoch 27 beat the saved best
+    by 0.000238 against min_delta 0.0005, and metrics.json ended up disagreeing
+    with the history file written beside it.
+
+    Validation accuracy is stubbed to rise by less than min_delta each epoch, so
+    the final epoch is the best one by a margin min_delta would swallow.
+    """
+    cfg = _tiny_cfg(
+        sample_dataset,
+        tmp_path / "run",
+        epochs=3,
+        early_stopping=EarlyStoppingConfig(
+            enabled=True, patience=10, min_delta=0.05
+        ),
+    )
+
+    accuracies = iter([0.50, 0.51, 0.52])
+    real_evaluate = Trainer.evaluate
+
+    def fake_evaluate(self, loader):
+        report = real_evaluate(self, loader)
+        report.accuracy = next(accuracies)
+        return report
+
+    monkeypatch.setattr(Trainer, "evaluate", fake_evaluate)
+
+    trainer = Trainer(cfg)
+    summary = trainer.train()
+
+    # Each step is 0.01, i.e. below min_delta=0.05, yet the last epoch is best.
+    assert summary.best_epoch == 3, f"best_epoch was {summary.best_epoch}"
+    assert summary.best_accuracy == pytest.approx(0.52)
+
+    flagged = [r.epoch for r in summary.history if r.is_best]
+    assert flagged == [1, 2, 3], f"is_best flags were {flagged}"
+
+    # The saved file must agree, since that is what eval and predict load.
+    ckpt = load_checkpoint(cfg.checkpoint_path(), map_location="cpu")
+    assert ckpt["epoch"] == 3
+    assert ckpt["metrics"]["accuracy"] == pytest.approx(0.52)
+
+
+def test_min_delta_still_controls_early_stopping(
+    sample_dataset: Path, tmp_path: Path, monkeypatch
+):
+    """The checkpoint fix must not disarm min_delta for patience.
+
+    Improvements below min_delta should still count as "no improvement" for the
+    patience counter, so a plateau of tiny gains stops the run.
+    """
+    cfg = _tiny_cfg(
+        sample_dataset,
+        tmp_path / "run",
+        epochs=6,
+        early_stopping=EarlyStoppingConfig(
+            enabled=True, patience=2, min_delta=0.05
+        ),
+    )
+
+    accuracies = iter([0.50, 0.501, 0.502, 0.503, 0.504, 0.505])
+    real_evaluate = Trainer.evaluate
+
+    def fake_evaluate(self, loader):
+        report = real_evaluate(self, loader)
+        report.accuracy = next(accuracies)
+        return report
+
+    monkeypatch.setattr(Trainer, "evaluate", fake_evaluate)
+
+    summary = Trainer(cfg).train()
+
+    assert summary.stopped_early, "min_delta no longer drives patience"
+    assert len(summary.history) == 3, f"ran {len(summary.history)} epochs"
+    # Best-checkpoint tracking stays strict even while patience trips.
+    assert summary.best_epoch == 3

@@ -115,13 +115,32 @@ class Trainer:
         self.bundle = bundle if bundle is not None else create_dataloaders(cfg)
         self.classes = self.bundle.classes
 
-        self.model, _ = initialize_model(
+        self.model, native_size = initialize_model(
             cfg.model_name,
             cfg.num_classes,
             linear_probe=cfg.linear_probe,
             use_pretrained=cfg.use_pretrained,
             dropout=cfg.dropout,
         )
+        # Backbones like efficientnet_b3/b4 were designed for 300/380px. Training
+        # them at the 224 default silently throws away most of what the extra
+        # capacity is for, and the accuracy looks disappointing for no visible
+        # reason. Warn rather than override: 224 is a legitimate choice when the
+        # run has to fit a compute budget, but it should be deliberate.
+        #
+        # Gated on native_size > 224 so this only fires for backbones that really
+        # do declare a higher resolution. simple_cnn reports 224 as a nominal
+        # default and is routinely trained at 32px, which is not a mistake.
+        if native_size > 224 and cfg.image_size < native_size * 0.9:
+            logger.warning(
+                "image_size=%d is well below the native %dpx for %s; "
+                "expect to lose accuracy that the larger backbone would "
+                "otherwise provide (set image_size=%d to use it fully)",
+                cfg.image_size,
+                native_size,
+                cfg.model_name,
+                native_size,
+            )
         self.model.to(self.device)
 
         self.criterion = nn.CrossEntropyLoss(label_smoothing=cfg.label_smoothing)
@@ -145,6 +164,9 @@ class Trainer:
             min_delta=cfg.early_stopping.min_delta,
             mode="max",
         )
+        # Tracked separately from the early stopper, which applies min_delta.
+        # See the checkpointing branch in fit() for why these must not share.
+        self._best_val: float | None = None
 
         self.train_transform = build_transform(
             cfg.image_size, is_train=True, use_autoaugment=cfg.use_autoaugment
@@ -205,8 +227,21 @@ class Trainer:
                 val_acc = report.accuracy
                 val_f1 = report.macro_f1
 
-                is_best = self.early_stopper.update(val_acc, epoch)
+                # Checkpoint on any strict improvement, and keep min_delta for
+                # patience only. Sharing one threshold between the two means a
+                # genuinely better model gets thrown away: on the Food-101 B4
+                # run, epoch 27 beat the saved best by 0.000238 against a
+                # min_delta of 0.0005, so best.pt kept the weaker epoch-24
+                # weights and metrics.json disagreed with the history it was
+                # written beside.
+                improved = self._best_val is None or val_acc > self._best_val
+                # Still consulted, so early-stopping behaviour is unchanged: it
+                # is the thing min_delta was added for.
+                self.early_stopper.update(val_acc, epoch)
+
+                is_best = improved
                 if is_best:
+                    self._best_val = val_acc
                     self.summary.best_accuracy = val_acc
                     self.summary.best_epoch = epoch
                     self.summary.final_report = report

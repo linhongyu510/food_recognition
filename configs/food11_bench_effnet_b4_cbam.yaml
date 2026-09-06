@@ -1,0 +1,59 @@
+# Food-11 benchmark: EfficientNet-B4 + CBAM at its native 380px.
+#
+# Reproduces the numbers recorded in README > Benchmarks.
+# Expects the ML2021 HW3 Food-11 layout under data/food-11 (see Benchmarks).
+#
+# This is the best Food-11 number in the table, but it costs ~7x the wall clock
+# of the B0 config for +1.4 points. Read the Benchmarks table before assuming
+# the trade is worth it for your use case.
+#
+# 380px is EfficientNet-B4's designed resolution. The sibling
+# food11_bench_effnet_b4_cbam_224.yaml runs the same backbone at 224px so the
+# architecture change can be separated from the resolution change.
+#
+# Fully supervised: the 6,786-image unlabelled pool is deliberately unused so
+# this number is a clean supervised baseline.
+
+model_name: efficientnet_b4_cbam
+num_classes: 11
+use_pretrained: true
+linear_probe: false
+dropout: 0.3
+
+train_dir: data/food-11/training/labeled
+val_dir: data/food-11/validation
+unlabeled_dir: null
+
+image_size: 380
+batch_size: 32
+num_workers: 4
+use_autoaugment: true
+
+epochs: 30
+learning_rate: 0.0005
+weight_decay: 0.0001
+label_smoothing: 0.1
+grad_clip_norm: 5.0
+scheduler: cosine
+warmup_epochs: 2
+
+device: auto
+seed: 0
+use_amp: false          # MPS autocast is unreliable; keep fp32 for reproducibility
+val_every_n_epochs: 1
+
+output_dir: runs/bench_effnet_b4_cbam
+checkpoint_name: best.pt
+
+early_stopping:
+  # Deliberately off. B4 peaked at epoch 13 and then sat on a plateau for the
+  # rest of the cosine schedule; with patience 8 the run stopped at epoch 21.
+  # That happens to reach the same best score here, but the stop is driven by
+  # the schedule rather than by convergence, so the full 30 epochs are kept to
+  # stay comparable with the other benchmark rows.
+  enabled: false
+  patience: 8
+  min_delta: 0.0005
+
+semi_supervised:
+  enabled: false
