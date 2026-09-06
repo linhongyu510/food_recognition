@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 205-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 207-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -25,6 +25,7 @@ evaluation and inference.
 - [Explaining predictions (Grad-CAM)](#explaining-predictions-grad-cam)
 - [Demo app](#demo-app)
 - [Publishing weights to the Hugging Face Hub](#publishing-weights-to-the-hugging-face-hub)
+  - [Published weights](#published-weights)
 - [Python API](#python-api)
 - [Models](#models)
 - [Configuration](#configuration)
@@ -292,11 +293,14 @@ python app.py --checkpoint runs/food11_effnet_cbam/checkpoints/best.pt
 ```
 
 Or run it straight from a checkpoint published on the Hub, with no local
-training:
+training and no dataset download:
 
 ```bash
-python app.py --hf-repo <user>/food-recognition-food11-effnet-b0-cbam
+python app.py --hf-repo hylin16/food-recognition-food11-effnet-b3-cbam-380
 ```
+
+That downloads the 45 MB checkpoint anonymously on first run and caches it. See
+[Published weights](#published-weights) for the other five.
 
 ![The demo app classifying a validation image](docs/demo_app.png)
 
@@ -339,6 +343,38 @@ python scripts/publish_to_hf.py \
 The card carries the accuracy, macro F1, checkpoint epoch, wall clock, hardest
 and easiest class, the full training configuration, and a limitations section.
 Checkpoints here run 16–73 MB, well inside the Hub's limits.
+
+### Published weights
+
+The six checkpoints behind the benchmark tables, published from the runs above:
+
+| Model | Dataset | Input | Accuracy | Size | Repo |
+|---|---|---:|---:|---:|---|
+| `b3_cbam` | Food-11 | 380px | **95.45%** | 45 MB | [`hylin16/food-recognition-food11-effnet-b3-cbam-380`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b3-cbam-380) |
+| `b0_cbam` | Food-11 | 300px | 95.15% | 17 MB | [`hylin16/food-recognition-food11-effnet-b0-cbam-300`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b0-cbam-300) |
+| `b4_cbam` | Food-11 | 380px | 95.00% | 73 MB | [`hylin16/food-recognition-food11-effnet-b4-cbam-380`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b4-cbam-380) |
+| `b0_cbam` | Food-11 | 224px | 93.64% | 17 MB | [`hylin16/food-recognition-food11-effnet-b0-cbam`](https://huggingface.co/hylin16/food-recognition-food11-effnet-b0-cbam) |
+| `b4_cbam` | Food-101 | 224px | **89.11%** | 73 MB | [`hylin16/food-recognition-food101-effnet-b4-cbam`](https://huggingface.co/hylin16/food-recognition-food101-effnet-b4-cbam) |
+| `b0_cbam` | Food-101 | 224px | 88.70% | 18 MB | [`hylin16/food-recognition-food101-effnet-b0-cbam`](https://huggingface.co/hylin16/food-recognition-food101-effnet-b0-cbam) |
+
+The first two are the picks from the [ablation grid](#resolution--architecture):
+B3@380 for accuracy, B0@300 for accuracy per minute. Each was re-downloaded from
+the Hub into a clean cache and re-scored to confirm the uploaded bytes reproduce
+the accuracy on the card.
+
+Loading one takes no knowledge of its architecture — the checkpoint carries its
+own `model_name`, `image_size` and class names:
+
+```python
+from huggingface_hub import hf_hub_download
+from food_recognition import load_predictor
+
+ckpt = hf_hub_download(
+    "hylin16/food-recognition-food11-effnet-b3-cbam-380", "best.pt"
+)
+predictor = load_predictor(ckpt)
+print(predictor.predict("photo.jpg", topk=3))
+```
 
 **On dataset licensing.** Food-101 is not permissively licensed: the images come
 from Foodspotting and are not ETH Zurich's property, with the dataset terms
@@ -725,7 +761,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, dataset prep, HF publishing, ablation plot
-tests/                    # 205 tests
+tests/                    # 207 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
@@ -741,7 +777,7 @@ linting, and still contain hard-coded `cuda:0` device assignments.
 ```bash
 pip install -e ".[dev]"
 
-pytest -q                                    # 205 tests
+pytest -q                                    # 207 tests
 pytest -q --cov=food_recognition             # with coverage
 ruff check src tests scripts                 # lint
 ```

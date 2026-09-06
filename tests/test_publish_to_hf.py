@@ -207,3 +207,50 @@ def test_missing_run_files_fail_loudly(script, tmp_path: Path):
 
     with pytest.raises(SystemExit, match="missing"):
         script._load_run(empty)
+
+
+def _extract_card(stdout: str) -> str:
+    """Return just the model card from the script's stdout.
+
+    The progress log above the card contains its own `--- ... ---` separators, so
+    a naive `stdout.index("---")` finds the wrong one. Anchor on a line that is
+    exactly the YAML fence.
+    """
+    lines = stdout.splitlines()
+    fences = [i for i, line in enumerate(lines) if line.strip() == "---"]
+    assert len(fences) >= 2, "no YAML front matter found in output"
+    return "\n".join(lines[fences[0] :])
+
+
+def test_card_carries_machine_readable_model_index(script, tmp_path: Path, capsys):
+    """The Hub renders 'Evaluation results' from model-index, so it must be valid
+    YAML carrying the same numbers as the prose table."""
+    yaml = pytest.importorskip("yaml")
+    run = _make_run(tmp_path, classes=[f"c{i}" for i in range(11)], accuracy=0.954545)
+
+    script.main(["--run", str(run), "--repo-id", "u/r", "--dry-run"])
+    out = capsys.readouterr().out
+
+    card = _extract_card(out)
+    front = yaml.safe_load(card.split("---")[1])
+
+    results = front["model-index"][0]["results"]
+    by_type = {m["type"]: m["value"] for r in results for m in r["metrics"]}
+    metrics = json.loads((run / "metrics.json").read_text())
+    assert by_type["accuracy"] == metrics["accuracy"]
+    assert by_type["f1"] == metrics["macro_f1"]
+    assert results[0]["task"]["type"] == "image-classification"
+
+
+def test_card_passes_hub_validation(script, tmp_path: Path, capsys):
+    """huggingface_hub's own validator must accept the card we generate."""
+    hub = pytest.importorskip("huggingface_hub")
+    run = _make_run(tmp_path, classes=[f"c{i}" for i in range(11)], accuracy=0.9545)
+
+    script.main(["--run", str(run), "--repo-id", "u/r", "--dry-run"])
+    out = capsys.readouterr().out
+
+    card_text = _extract_card(out)
+    card = hub.ModelCard(card_text)
+    card.validate()  # raises if the Hub would reject the metadata
+    assert card.data.to_dict()["model-index"]

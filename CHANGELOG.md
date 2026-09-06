@@ -5,6 +5,33 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-09-06
+
+### Added
+
+- **Published all six benchmarked checkpoints to the Hugging Face Hub** under
+  [`hylin16`](https://huggingface.co/hylin16), including the two picks from the
+  ablation grid (B3@380 and B0@300). README gains a "Published weights" table
+  with repo links, sizes and accuracies, plus a copy-pasteable load snippet.
+- Model cards now carry a `model-index` block, so the Hub renders its
+  "Evaluation results" widget and the accuracy/macro-F1 are machine-readable.
+  Values come from the run's `metrics.json`, so the widget cannot disagree with
+  the card's own table. Two tests cover this, one asserting the numbers match
+  `metrics.json` and one running `huggingface_hub`'s own card validator.
+
+### Verified
+
+- Each published checkpoint was re-downloaded from the Hub into a clean cache and
+  re-scored: B3@380 and B0@300 reproduced 95.45% and 95.15% exactly. The
+  downloads ran unauthenticated, confirming the repos are genuinely public.
+- `python app.py --hf-repo ...` was run end to end against a live repo: it pulled
+  the 45 MB checkpoint, reported `11 classes · 380px`, and classified a held-out
+  validation image at 92% with Grad-CAM heat on the food.
+
+### Changed
+
+- Test suite grew from 205 to 207 tests.
+
 ## [0.7.0] - 2026-09-06
 
 ### Added
