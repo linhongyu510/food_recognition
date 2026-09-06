@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 207-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 217-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -346,7 +346,7 @@ Checkpoints here run 16–73 MB, well inside the Hub's limits.
 
 ### Published weights
 
-Every cell of the [resolution × architecture grid](#resolution--architecture) is
+Every cell of the [resolution × architecture grid](#resolution-architecture) is
 published, plus both Food-101 models — so every number in the benchmark tables
 has a downloadable checkpoint behind it.
 
@@ -371,10 +371,14 @@ Food-101:
 | `b4_cbam` | 224px | **89.11%** | 73 MB | [`food101-effnet-b4-cbam`](https://huggingface.co/hylin16/food-recognition-food101-effnet-b4-cbam) |
 | `b0_cbam` | 224px | 88.70% | 18 MB | [`food101-effnet-b0-cbam`](https://huggingface.co/hylin16/food-recognition-food101-effnet-b0-cbam) |
 
-All repo names are prefixed `hylin16/food-recognition-`. The bolded Food-11 rows
-are the two picks: B3@380 for accuracy, B0@300 for accuracy per minute. The
-224px B0 repo carries no resolution suffix because it was published first and is
-linked from elsewhere; it is the 224px cell.
+All repo names are prefixed `hylin16/food-recognition-`. Accuracies here are the
+seed-0 figures the cards were generated from; four of these cells have since been
+re-run with three seeds, and the top three are statistically tied — see
+[seed variance](#how-much-of-this-grid-is-real-seed-variance) before reading this
+table as a ranking. The bolded rows are the practical picks: B3@380 for the
+steadiest results, B0@300 for reaching the same accuracy group in a quarter of the
+time. The 224px B0 repo carries no resolution suffix because it was published
+first and is linked from elsewhere; it is the 224px cell.
 
 Publishing the whole grid rather than only the winners is deliberate — the
 grid's value is in the comparison, and the cells that *lost* are what make the
@@ -477,13 +481,14 @@ Running below native resolution is a legitimate way to fit a compute budget —
 380px costs 2.7x the time per epoch here — so the warning does not override the
 setting. It exists because the accuracy loss is otherwise invisible.
 
-Native is a floor worth respecting, not a target to stop at. In the
-[resolution × architecture grid](#resolution--architecture), only B4 actually
-peaks at its native resolution: B0 is pretrained at 224px but does best at 300px,
-and B3 is pretrained at 300px but does best at 380px. Feeding a model *more*
-pixels than it was pretrained on is often worth more than switching to a larger
-backbone — so the warning fires on a real loss, but silence from it does not mean
-the resolution is optimal.
+Native is a floor worth respecting, and for at least one backbone not a target to
+stop at. In the [resolution × architecture grid](#resolution-architecture), B0 is
+pretrained at 224px but is clearly better at 300px (+1.36 points across three
+seeds) — a real effect, well clear of the run-to-run noise. The same pattern for
+B3 and B4 is inside the seed noise and is not claimed. So feeding a model more
+pixels than it was pretrained on can be worth more than switching to a larger
+backbone; the warning fires on a real loss, but silence from it does not mean the
+resolution is optimal.
 
 ### CBAM
 
@@ -577,41 +582,85 @@ can:
 
 ![Food-11 resolution and architecture ablation](docs/benchmarks/food11_ablation.png)
 
-Three things fall out of the grid, and two of them contradict what the four-row
-table above suggests on its own.
+#### How much of this grid is real? (seed variance)
 
-**Resolution matters more than parameter count.** Every model gains more from
-being given more pixels than from being made larger. B0 picks up +1.52 points
-going 224px → 300px; going B0 → B4 at a fixed 224px buys +0.61 for 4.3x the
-parameters. The cheapest model at 300px (95.15%, 19.0 min) beats the largest at
-its own native 380px (95.00%, 77.3 min) — **+0.15 points for a quarter of the
-time**. If you have a fixed budget, spend it on input size before backbone size.
+The table above is one seed per cell. Because the validation split is 660
+images, a single image is 0.152 points, and several of the gaps in that table are
+one or two images wide. Four cells were therefore re-run with seeds 1 and 2 under
+the identical config, changing only `--seed`:
 
-**"Native resolution is optimal" is false here.** Only B4 peaks where it was
-pretrained. B0 is trained at 224px but does best at 300px (+1.52 over its own
-native), and B3 is trained at 300px but does best at 380px (+0.30). So the
-warning this project added in 0.5.0 is correctly aimed at *far* below native —
-B4 at 224px does lose 0.76 points — but native is a floor to respect, not a
-target to hit. Above it there is still room, at least on 224px-ish food photos
-where the dishes are large and centred.
+| Cell | seed 0 | seed 1 | seed 2 | mean | SD | spread |
+|---|---:|---:|---:|---:|---:|---:|
+| `b3_cbam` @ 380px | 95.45% | 95.61% | 95.61% | **95.56%** | 0.09 | 0.15 |
+| `b4_cbam` @ 380px | 95.00% | 95.61% | 95.76% | **95.45%** | 0.40 | 0.76 |
+| `b0_cbam` @ 300px | 95.15% | 95.30% | 94.55% | **95.00%** | 0.40 | 0.76 |
+| `b0_cbam` @ 380px | 94.85% | 94.70% | 95.00% | **94.85%** | 0.15 | 0.30 |
 
-**The best cell is the middle model, not the biggest.** `efficientnet_b3_cbam`
-at 380px reaches **95.45%**, the highest of the nine, and does it in 51.5 min
-against B4@380's 77.3. B4 is never the best choice at any resolution in this
-grid: it wins at 224px only because the smaller models are starved there.
+Reproduce with `scripts/aggregate_seeds.py`; the report is committed as
+[`docs/benchmarks/food11_seed_variance.json`](docs/benchmarks/food11_seed_variance.json).
 
-The practical reading, for this dataset and schedule: **B0 + CBAM at 300px**
-(95.15%, 19 min) is the accuracy-per-minute pick, and **B3 + CBAM at 380px**
-(95.45%, 51.5 min) is the one to reach for when the last few tenths matter.
-Neither is the configuration the original claim named.
+**This overturns the headline this section previously carried.** Version 0.7.0
+of this README claimed that B0 at 300px *beat* B4 at its native 380px — +0.15
+points for a quarter of the compute. Across three seeds it does not: B4@380
+averages 95.45% against B0@300's 95.00%, so the larger model is **ahead by 0.45
+points**, not behind by 0.15. Seed 0 simply happened to be B4@380's worst run of
+three (95.00%, versus 95.61% and 95.76%) and B0@300's second best. The
+single-seed ordering was an artifact, and it was reported here as a finding.
 
-Caveats worth stating: this is one seed per cell on a 660-image validation
-split, where one image is 0.15 points — the same size as the B0@300 vs B4@380
-gap, so treat those two as tied rather than ranked. The 3,080-image training set
-is small enough that the larger backbones are plausibly data-limited rather than
-capacity-limited, which is the most likely reason B4 never pulls ahead. All nine
-checkpoints were re-scored through `food-recognition-eval` and reproduced their
-figures to six decimal places across all 660 images.
+The run-to-run spread reaches **0.76 points** — five validation images. Any gap
+smaller than that cannot be ranked from one seed, which disqualifies most of the
+comparisons in the nine-cell table:
+
+| Comparison | Gap | Verdict |
+|---|---:|---|
+| `b0`@300 → `b0`@224 | +1.36 | real — 9x the SD of either cell |
+| `b0`@380 → `b0`@224 | +1.21 | real |
+| `b3`@380 vs `b4`@380 | +0.10 | inside noise — not separable |
+| `b3`@380 vs `b0`@300 | +0.56 | inside noise |
+| `b4`@380 vs `b0`@300 | +0.45 | inside noise |
+| `b4`@380 vs `b4`@300 | +0.61 | inside noise (single seed at 300px) |
+| `b4`@224 vs `b0`@224 | +0.61 | inside noise (both single seed) |
+
+So one claim from the grid survives, and it is the one with a large effect.
+
+**Resolution matters more than parameter count — this holds.** B0 gains +1.36
+points going 224px → 300px (three-seed mean against a single-seed 224px cell),
+which is 9x the standard deviation of the cells involved and the only effect here
+comfortably clear of the noise floor. Going B0 → B4 at a fixed 224px buys +0.61
+for 4.3x the parameters, and +0.61 is *inside* the noise. Spending a fixed budget
+on input size before backbone size is still the defensible reading.
+
+**"Native resolution is optimal" is still false for B0, and only for B0.** B0 is
+pretrained at 224px and is clearly better at both 300px (+1.36) and 380px (+1.21)
+— both real. B3's 300px → 380px gain (+0.40) and B4's (+0.61) are inside the
+noise and should not be cited as evidence. The 0.5.0 warning remains correctly
+aimed at *far* below native, since B4 at 224px does lose ground, but the specific
+claim "every backbone has room above its native resolution" is only demonstrated
+for B0.
+
+**There is no demonstrated best cell.** The top three — B3@380 (95.56%), B4@380
+(95.45%), B0@300 (95.00%) — are separated by less than the seed spread and must
+be treated as a three-way tie on accuracy. The earlier claim that B4 "is never
+the best choice at any resolution" is not supported: its three-seed mean is
+second, statistically indistinguishable from first, and its single best run
+(95.76%) is the highest number anywhere in this project.
+
+Cost, unlike accuracy, is measured without noise, so it is what actually
+separates them: B0@300 reaches the tied group in **19.0 min**, B3@380 in 51.5,
+B4@380 in 77.3. The practical reading is now about compute rather than ranking —
+**B0 + CBAM at 300px** gets you into the top group 4.1x faster than B4@380, and
+**B3 + CBAM at 380px** has the steadiest results (SD 0.09, the tightest of the
+four re-run cells) if reproducibility matters more than wall clock.
+
+Remaining caveats: the five cells that were *not* re-run are still single-seed,
+so their positions carry an unquantified ±0.4-ish uncertainty by analogy. Three
+seeds is enough to expose a false ordering, as it did here, but too few for a
+confidence interval worth quoting. The 3,080-image training set is small enough
+that the larger backbones are plausibly data-limited rather than
+capacity-limited. All nine grid checkpoints were re-scored through
+`food-recognition-eval` and reproduced their figures to six decimal places across
+all 660 images, and the eight seed runs each completed the full 30 epochs with
+their seed recorded in the checkpoint config.
 
 Grad-CAM from the 380px B4 model on a validation noodle plate, predicted at
 0.9338 — heat on the pasta and its garnish, with the plate rim cold:
@@ -762,12 +811,12 @@ The B4 gap has since been closed on both datasets. `efficientnet_b4_cbam` is now
 benchmarked on Food-11 at 224px and its native 380px, reaching **95.00%**, and on
 Food-101 at 224px, reaching **89.11%**.
 
-The [resolution × architecture grid](#resolution--architecture) then went further
-and found that this architecture is *not* the best of the nine cells on Food-11:
-`efficientnet_b3_cbam` at 380px reaches **95.45%** in two thirds of the time, and
-even `efficientnet_b0_cbam` at 300px edges B4 out at a quarter of the cost. So
-the configuration the original claim named turns out not to be the one worth
-recommending here.
+The [resolution × architecture grid](#resolution-architecture) initially looked
+like it demoted this architecture, but re-running four cells with three seeds
+withdrew that: B4@380 averages **95.45%** across seeds and is statistically tied
+with the two cells that appeared to beat it. What remains true is narrower — B4
+is the most expensive way into the top group (77.3 min against B0@300's 19.0), not
+a worse one.
 
 Neither old figure is thereby confirmed. The Food-101 measurement is **5.0 points
 above** the 84.09% that was claimed for this architecture, so the claim is not
@@ -793,7 +842,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, dataset prep, HF publishing, ablation plot
-tests/                    # 207 tests
+tests/                    # 217 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
@@ -809,7 +858,7 @@ linting, and still contain hard-coded `cuda:0` device assignments.
 ```bash
 pip install -e ".[dev]"
 
-pytest -q                                    # 207 tests
+pytest -q                                    # 217 tests
 pytest -q --cov=food_recognition             # with coverage
 ruff check src tests scripts                 # lint
 ```
