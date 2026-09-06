@@ -5,7 +5,58 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.2] - 2026-09-06
+## [0.8.0] - 2026-09-07
+
+### Changed
+
+- **Retracted the grid's headline claim.** 0.7.0 reported that `b0_cbam` at 300px
+  beat `b4_cbam` at its native 380px — "+0.15 points for a quarter of the time".
+  Re-running four cells with seeds 1 and 2 shows the opposite: across three seeds
+  B4@380 averages 95.45% against B0@300's 95.00%, so the larger model is ahead by
+  0.45 points. Seed 0 was B4@380's worst run of three (95.00% versus 95.61% and
+  95.76%). The ordering was seed noise reported as a finding, and the README now
+  says so explicitly rather than quietly restating the numbers.
+- **"Native resolution is not optimal" narrowed to B0 only.** B0's gain from
+  224px → 300px (+1.36) and → 380px (+1.21) are real, roughly 9x the standard
+  deviation of the cells involved. The equivalent claims for B3 (+0.40) and B4
+  (+0.61) sit inside the seed noise and are no longer asserted.
+- **"B3@380 is the best of the nine cells" downgraded to a three-way tie.** The
+  top three cells span 0.56 points while run-to-run spread reaches 0.76, so they
+  are not separable. Recommendations are now made on wall clock, which is measured
+  without noise: B0@300 reaches the tied group in 19.0 min against B4@380's 77.3.
+- The ablation figure plots three-seed means with 1-SD error bars for the re-run
+  cells, and its subtitle states the largest observed spread, so the plot can no
+  longer invite a ranking the data does not support.
+- Fixed three pre-existing broken in-page anchors (`#resolution--architecture`);
+  the `×` in the heading yields a single hyphen in the GitHub slug.
+
+### Added
+
+- `scripts/aggregate_seeds.py` — reads per-seed `metrics.json` files and reports
+  mean, sample SD, spread and per-seed values per cell, merging seed 0 from the
+  grid JSON so it need not be re-run. Exits 2 on a missing directory and 1 when no
+  runs are found, so a wrong path cannot look like an empty result.
+- `scripts/plot_ablation.py --variance` draws the error bars; without the flag the
+  figure renders exactly as before.
+- `docs/benchmarks/food11_seed_variance.json` — the committed multi-seed report
+  behind every number in the new README section.
+- Ten tests for the aggregator, covering seed grouping, seed-0 merging from the
+  grid, refusal to override an existing seed 0, skipping incomplete runs, the
+  statistics, and both non-zero exit paths. Suite is now 217 tests.
+
+### Verified
+
+- All eight new runs completed the full 30 epochs with `seed`, `model_name` and
+  `image_size` read back from each checkpoint's own config, confirming the runs
+  differ only in seed.
+- The seed mechanism itself was checked before spending compute: the same seed
+  reproduces accuracy bit-exactly and a different seed diverges. Without that,
+  "multi-seed" error bars could have been measuring nothing.
+- Every figure in the new README section was re-derived from
+  `food11_seed_variance.json` by a script that parses the rendered table — 18
+  checks, including all four seed rows cell by cell.
+
+
 
 ### Added
 
