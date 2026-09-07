@@ -873,6 +873,26 @@ and a distribution build.
 
 ## Citation
 
+[`paper.md`](paper.md) is a software paper prepared for submission to the
+[Journal of Open Source Software](https://joss.theoj.org/), with references in
+[`paper.bib`](paper.bib). It is a submission draft: it has **not** been
+submitted, reviewed or accepted, and the author affiliation still needs to be
+confirmed before it is. The `draft-pdf` workflow compiles it with the Open
+Journals action on every change, and it also builds locally with the same
+container the journal uses:
+
+```bash
+docker run --rm --volume "$PWD:/data" --user $(id -u):$(id -g) \
+  --env JOURNAL=joss openjournals/inara
+```
+
+The paper's argument is the seed-variance finding described above: the
+single-seed grid in 0.7.0 produced a confidently stated ordering that three
+seeds reversed. Every number in it comes from
+[`docs/benchmarks/food11_ablation_grid.json`](docs/benchmarks/food11_ablation_grid.json)
+and
+[`docs/benchmarks/food11_seed_variance.json`](docs/benchmarks/food11_seed_variance.json).
+
 The `docs/` directory holds the original thesis notes and reference PDF that
 this project accompanied.
 
