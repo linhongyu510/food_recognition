@@ -877,7 +877,9 @@ and a distribution build.
 [Journal of Open Source Software](https://joss.theoj.org/), with references in
 [`paper.bib`](paper.bib). It is a submission draft: it has **not** been
 submitted, reviewed or accepted, and the author affiliation still needs to be
-confirmed before it is. The `draft-pdf` workflow compiles it with the Open
+confirmed before it is. Two blocking gaps are recorded in
+[`docs/joss_readiness.md`](docs/joss_readiness.md) — read that before
+submitting. The `draft-pdf` workflow compiles it with the Open
 Journals action on every change, and it also builds locally with the same
 container the journal uses:
 
