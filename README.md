@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 399-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 422-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -32,6 +32,7 @@ evaluation and inference.
 - [Self-training](#self-training)
 - [Benchmarks](#benchmarks)
 - [Statistical significance](docs/significance.md)
+- [Attention gains vs seed noise](docs/attention_variance.md)
 - [Project layout](#project-layout)
 - [Development](#development)
 
@@ -909,7 +910,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, dataset prep, HF publishing, plots, significance
-tests/                    # 399 tests
+tests/                    # 422 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
@@ -925,7 +926,7 @@ linting, and still contain hard-coded `cuda:0` device assignments.
 ```bash
 pip install -e ".[dev]"
 
-pytest -q                                    # 399 tests
+pytest -q                                    # 422 tests
 pytest -q --cov=food_recognition             # with coverage
 ruff check src tests scripts                 # lint
 ```
