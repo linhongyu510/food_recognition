@@ -1,0 +1,103 @@
+{
+  "full_set": {
+    "accuracy_diff_points": 0.41188118811881225,
+    "n_discordant": 1910,
+    "n_images": 25250,
+    "only_a_correct": 1007,
+    "only_b_correct": 903,
+    "p_value": 0.018410505683949304
+  },
+  "protocol": {
+    "alpha": 0.05,
+    "caveat": "this isolates label-sampling noise for two fixed checkpoints; it does not capture training-seed noise",
+    "method": "subsample the full labelled validation set without replacement, re-run McNemar's exact test on each subset",
+    "reference": "the full-set difference is treated as ground truth, so power is measured against a difference known to be present",
+    "resample_unit": "validation image",
+    "rng_seed": 20260913,
+    "trials_per_size": 400
+  },
+  "runs": {
+    "a": {
+      "checkpoint": "runs/b4_food101_224/checkpoints/best.pt",
+      "path": "/Users/bytedance/Doubao/chats/2026-09-05/new-chat-1/work/f101/reval/b4_correct.json"
+    },
+    "b": {
+      "checkpoint": "runs/bench_food101/checkpoints/best.pt",
+      "path": "/Users/bytedance/Doubao/chats/2026-09-05/new-chat-1/work/f101/reval/b0_correct.json"
+    }
+  },
+  "sizes": [
+    {
+      "diff_below_one_image_rate": 0.1275,
+      "mean_diff_points": 0.41136363636363626,
+      "median_p": 0.5966417603730977,
+      "n_images": 660,
+      "points_per_image": 0.15151515151515152,
+      "power_at_alpha": 0.045,
+      "sd_diff_points": 1.0519591861595214,
+      "sign_flip_rate": 0.3875,
+      "single_run_ci_width_points": 3.3564844916278647,
+      "trials": 400
+    },
+    {
+      "diff_below_one_image_rate": 0.055,
+      "mean_diff_points": 0.4312499999999998,
+      "median_p": 0.4856115106883201,
+      "n_images": 1320,
+      "points_per_image": 0.07575757575757576,
+      "power_at_alpha": 0.0675,
+      "sd_diff_points": 0.7455680247977019,
+      "sign_flip_rate": 0.2875,
+      "single_run_ci_width_points": 2.36252639910699,
+      "trials": 400
+    },
+    {
+      "diff_below_one_image_rate": 0.0575,
+      "mean_diff_points": 0.4061250000000001,
+      "median_p": 0.4669648880602331,
+      "n_images": 2000,
+      "points_per_image": 0.05,
+      "power_at_alpha": 0.0825,
+      "sd_diff_points": 0.5867532982075122,
+      "sign_flip_rate": 0.2575,
+      "single_run_ci_width_points": 1.9162875315664074,
+      "trials": 400
+    },
+    {
+      "diff_below_one_image_rate": 0.0325,
+      "mean_diff_points": 0.39354999999999996,
+      "median_p": 0.32457652319275987,
+      "n_images": 5000,
+      "points_per_image": 0.02,
+      "power_at_alpha": 0.1425,
+      "sd_diff_points": 0.35616925589825627,
+      "sign_flip_rate": 0.145,
+      "single_run_ci_width_points": 1.2097138349410397,
+      "trials": 400
+    },
+    {
+      "diff_below_one_image_rate": 0.005,
+      "mean_diff_points": 0.4160625,
+      "median_p": 0.10214601677327256,
+      "n_images": 12000,
+      "points_per_image": 0.008333333333333333,
+      "power_at_alpha": 0.345,
+      "sd_diff_points": 0.18472401907719657,
+      "sign_flip_rate": 0.0075,
+      "single_run_ci_width_points": 0.7802985797351836,
+      "trials": 400
+    },
+    {
+      "diff_below_one_image_rate": 0.0,
+      "mean_diff_points": 0.41188118811881225,
+      "median_p": 0.018410505683949304,
+      "n_images": 25250,
+      "points_per_image": 0.0039603960396039604,
+      "power_at_alpha": 1.0,
+      "sd_diff_points": 0.0,
+      "sign_flip_rate": 0.0,
+      "single_run_ci_width_points": 0.5376758288920591,
+      "trials": 400
+    }
+  ]
+}
