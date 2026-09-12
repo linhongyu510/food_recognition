@@ -1,0 +1,182 @@
+{
+  "_meta": {
+    "purpose": "Reproducibility triage for published attention-mechanism gains in food recognition. Records, per paper, whether the artefacts needed to re-run it exist, and what re-running it would cost on this project's hardware. Availability was checked on independent channels (publisher page, GitHub code search API, HuggingFace model API) rather than inferred from the abstract.",
+    "audit_date": "2026-09-13",
+    "hardware": "Apple M5 Pro, 18 cores, 48 GB, macOS 26.5.1 arm64; CUDA unavailable, MPS available",
+    "channels_checked": [
+      "publisher / arXiv landing page (code or data availability statement)",
+      "GitHub REST search API (repositories + users)",
+      "HuggingFace model API (search by task keywords)",
+      "Google Scholar author profiles"
+    ],
+    "cost_basis": "Measured on this machine, not assumed. EfficientNet-B7 @256, batch 16, MPS: 1.755 s/optimiser step over 5 timed steps after 2 warmup steps -> 18.0 min/epoch on the 9,866-image Food-11 train split. EfficientNet-B0-CBAM @224, batch 32, 30 epochs: 10.7 min/run (docs/benchmarks/food11_ablation_grid.json, cell b0_224).",
+    "serialisation_constraint": "Two concurrent MPS trainings slow each other by roughly 2x, so all reproduction runs must be serial. Wall-clock estimates below assume serial execution."
+  },
+  "papers": [
+    {
+      "id": "rokhva2025",
+      "citation": "Rokhva, S. & Teimourpour, B. (2025). Accurate & real-time food classification through the synergistic integration of EfficientNetB7, CBAM, transfer learning, and data augmentation. Food and Humanity, 4, 100492. Preprint: arXiv:2410.02304.",
+      "claim": "96.40% average accuracy on Kaggle Food-11 (16,643 images, 11 classes) with EfficientNetB7 + CBAM.",
+      "why_relevant": "Most structurally similar published work to this project: same dataset family, same backbone family, same attention module.",
+      "code": {
+        "available": true,
+        "url": "https://github.com/Shayan1999rokh/Accurate-Food-Image-Recognition-Using-EfficientNetB7-CBAM-attention-and-Transfer-Learning",
+        "found_via": "GitHub search API on the author's surname; NOT linked from the arXiv landing page or the journal page",
+        "form": "single Jupyter notebook (3.0 MB) plus an exported .py (60.8 kB, 1,645 lines)",
+        "framework": "PyTorch + torchvision + torchmetrics + efficientnet_pytorch",
+        "license": "none declared -> no redistribution rights; may be read and re-implemented, not vendored",
+        "stars": 2,
+        "pushed_at": "2025-10-16"
+      },
+      "weights": {
+        "available": false,
+        "notes": "No checkpoint in the repo and no HuggingFace entry found for these authors."
+      },
+      "data": {
+        "obtainable": true,
+        "notes": "Kaggle Food-11. This project already holds the same 16,643-image corpus locally, split 9,866 train / 3,430 valid / 3,347 eval, matching the per-class counts hardcoded in the authors' script."
+      },
+      "seed_variance_reported": false,
+      "seed_control_in_code": {
+        "any_seed_set": false,
+        "evidence": "grep -ci 'seed' over the 1,645-line exported script returns 0. No torch.manual_seed, no numpy seed, no cudnn.deterministic. DataLoader(shuffle=True) on all three splits.",
+        "consequence": "The published 96.40% is one draw from an uncontrolled distribution, and the code as published cannot reproduce its own number exactly, let alone quantify its spread. This is the specific gap that makes a variance audit meaningful rather than redundant."
+      },
+      "reported_metric_caveat": "Accuracy is computed with torchmetrics Accuracy(task='multiclass', average='macro'), i.e. macro-averaged recall, on an imbalanced 11-class split. It is therefore not directly comparable to the micro/top-1 accuracy this project reports, and the comparison would have to be re-derived rather than quoted.",
+      "measurement_resolution": {
+        "eval_set_images": 3347,
+        "points_per_image": 0.029877502240812673,
+        "note": "Their eval split is 3,347 images, so one image is worth 0.0299 pts there."
+      },
+      "reproduction_cost": {
+        "minutes_per_epoch_measured": 18.0,
+        "epochs_in_paper": 35,
+        "hours_per_seed": 10.5,
+        "seeds_wanted": 3,
+        "hours_for_3_seeds": 31.6,
+        "verdict": "feasible in principle, not affordable within this session"
+      },
+      "status": "NOT REPRODUCED - code located and read, cost measured, training not run"
+    },
+    {
+      "id": "deng2024",
+      "citation": "Deng, G., Wu, D. & Chen, W. (2024). Attention Guided Food Recognition via Multi-Stage Local Feature Fusion. Computers, Materials & Continua, 80(2), 1985-2003.",
+      "claim": "MAMS-net (ConvNeXt-B + hybrid attention + multi-stage local fusion) reaches 91.12% top-1 on ETH Food-101, +1.04 pts over the ConvNeXt-B baseline.",
+      "why_relevant": "Reports a full module ablation AND a stage-placement ablation on Food-101, the same 25,250-image test split this project now evaluates on. Its ablation tables are fine-grained enough to check against measurement resolution directly, without retraining.",
+      "code": {
+        "available": false,
+        "found_via": "GitHub search API returned 0 repositories for the method name and for the MSLF module; no code or data availability statement on the SciOpen article page",
+        "notes": "The custom Roushi60 dataset (60 classes, 5,395 images) introduced by the paper is also not published, so two of its three benchmarks are not reconstructable."
+      },
+      "weights": {"available": false},
+      "data": {
+        "obtainable": "partially",
+        "notes": "ETH Food-101 is available and already local. ChineseFoodNet requires separate access. Roushi60 is unpublished."
+      },
+      "seed_variance_reported": false,
+      "resolution_check_no_retraining_needed": {
+        "test_set_images": 25250,
+        "points_per_image": 0.003960396039603960,
+        "module_ablation_table5": [
+          {"comparison": "ConvNeXt-B -> +HA", "delta_points": 0.70, "delta_in_images": 176.8},
+          {"comparison": "ConvNeXt-B -> +MSLF", "delta_points": 0.75, "delta_in_images": 189.4},
+          {"comparison": "ConvNeXt-B -> MAMS-net (full)", "delta_points": 1.04, "delta_in_images": 262.6}
+        ],
+        "stage_placement_table6": {
+          "values_percent": {
+            "stage1": 89.98, "stage2": 90.68, "stage3": 90.70, "stage4": 90.71,
+            "s2+s3": 90.76, "s2+s4": 90.76, "s3+s4": 90.75, "s2+s3+s4": 90.78
+          },
+          "best_minus_second_points": 0.02,
+          "best_minus_second_in_images": 5.0,
+          "top4_spread_points": 0.03,
+          "top4_spread_in_images": 7.6,
+          "interpretation": "The selected configuration (stages 2+3+4) is chosen over the runner-up on a 0.02-point margin, i.e. 5 images out of 25,250, from single runs with no seed variance reported. Four of the eight placements sit inside a 0.03-point band (7.6 images). This project's own measured seed spread on a comparable setup is 0.15 to 0.76 points (docs/benchmarks/food11_seed_variance.json), which is 5x to 25x that band. The stage-placement ranking is therefore not resolvable from the evidence presented, independent of whether the headline +1.04 is real. The headline module gains (177-263 images) are a different matter and are large enough to plausibly survive seed noise.",
+          "caveat": "This is an argument from measurement resolution and from THIS project's seed spread on a different dataset and backbone. It is not a reproduction of Deng et al., and it does not establish what their seed spread actually is."
+        }
+      },
+      "reproduction_cost": {
+        "blocker": "no code; ConvNeXt-B + two custom modules would have to be reimplemented from prose and figures",
+        "notes": "Reimplementation is a research task with its own validity problem: a failed reproduction would be unattributable between the method and the reimplementation. Food-101 at ConvNeXt-B scale also exceeds the measured 11.2 h that EfficientNet-B4 @224 already costs for 30 epochs on this machine.",
+        "verdict": "not reproducible on this hardware within any realistic session budget"
+      },
+      "status": "NOT REPRODUCED - published tables audited against measurement resolution instead"
+    },
+    {
+      "id": "xu2021",
+      "citation": "Xu, B., He, X. & Qu, Z. (2021). Asian Food Image Classification Based on Deep Learning. Journal of Computer and Communications, 9(3), 10-28.",
+      "claim": "CBAM combined with MobileNetV2 / VGG16 / ResNet50 plus Mixup; top-1 87.33%.",
+      "why_relevant": "Frequently cited as prior art for CBAM-plus-food; reports per-module contributions of CBAM and Mixup separately.",
+      "code": {"available": false, "found_via": "no availability statement on the SCIRP page; GitHub search returned nothing attributable to these authors"},
+      "weights": {"available": false},
+      "data": {"obtainable": false, "notes": "The Asian-food corpus used is not a standard public benchmark."},
+      "seed_variance_reported": false,
+      "reproduction_cost": {"blocker": "no code and no dataset", "verdict": "not reproducible"},
+      "status": "NOT REPRODUCED - blocked on both code and data"
+    },
+    {
+      "id": "bsam2025",
+      "citation": "The brief self-attention module for lightweight CNNs (BSAM). Journal of Systems Engineering and Electronics, 2025.",
+      "claim": "Lightweight self-attention evaluated on Food-101, Caltech-256 and Mini-ImageNet.",
+      "code": {"available": false, "found_via": "GitHub search API returned 0 repositories for the module name"},
+      "weights": {"available": false},
+      "data": {"obtainable": true, "notes": "Food-101 is local."},
+      "seed_variance_reported": false,
+      "reproduction_cost": {"blocker": "no code; module would need reimplementation from prose", "verdict": "not reproducible within session budget"},
+      "status": "NOT REPRODUCED"
+    },
+    {
+      "id": "singh2023",
+      "citation": "Singh, S. & Susan, S. (2023). Xception-based food classification. IEEE (doc 10307479).",
+      "claim": "84.54% on Food-101 with Xception.",
+      "why_relevant": "A no-attention baseline on the same dataset, useful as a reference point for how large architecture-level differences are on Food-101.",
+      "code": {"available": false, "found_via": "GitHub search returned nothing attributable; paper is paywalled with no availability statement surfaced"},
+      "weights": {"available": false},
+      "data": {"obtainable": true},
+      "seed_variance_reported": false,
+      "status": "NOT REPRODUCED"
+    },
+    {
+      "id": "sayudha2025",
+      "citation": "Sayudha & Sthevanie (2025). Attention-Enhanced Deep Residual Networks (ResNet50 + CBAM) for banana ripeness. ICoDSA 2025.",
+      "claim": "94.42% with ResNet50 + CBAM.",
+      "why_relevant": "Adjacent food-domain CBAM claim; included to test whether the no-variance-reporting pattern generalises beyond food-dish classification.",
+      "code": {"available": false},
+      "weights": {"available": false},
+      "data": {"obtainable": false, "notes": "banana ripeness dataset not identified as a standard public release"},
+      "seed_variance_reported": false,
+      "status": "NOT REPRODUCED"
+    },
+    {
+      "id": "liu2024_cbiaformer",
+      "citation": "Liu, Y. et al. (2024). Convolution-Enhanced Bi-Branch Adaptive Transformer with Cross-Task Interaction for Food Category and Ingredient Recognition. IEEE TIP.",
+      "claim": "Competitive results on ETH Food-101, Vireo Food-172 and ISIA Food-200.",
+      "why_relevant": "The ONE candidate in this set that publishes code, so it is the only one where a variance audit would not be confounded by reimplementation error.",
+      "code": {
+        "available": true,
+        "url": "https://github.com/Liuyuxinict/CBiAFormer",
+        "found_via": "GitHub search API; also stated in the ACM/IEEE landing page",
+        "stars": 11
+      },
+      "weights": {"available": "claimed in the paper landing page; not verified by download in this audit"},
+      "data": {"obtainable": "partially", "notes": "Food-101 local; Food-172 and Food-200 need separate access."},
+      "seed_variance_reported": false,
+      "reproduction_cost": {
+        "blocker": "transformer at Food-101 scale; this machine already needs 11.2 h for EfficientNet-B4 @224 for 30 epochs, and 254 min for EfficientNet-B0 @224. A bi-branch transformer would exceed both by a wide margin, times 3 seeds.",
+        "verdict": "code exists and this is the best candidate for future work, but training is out of reach on MPS"
+      },
+      "status": "NOT REPRODUCED - flagged as the highest-value target if GPU time becomes available"
+    }
+  ],
+  "summary": {
+    "papers_triaged": 7,
+    "code_publicly_available": 2,
+    "code_available_ids": ["rokhva2025", "liu2024_cbiaformer"],
+    "weights_publicly_available": 0,
+    "papers_reporting_seed_variance": 0,
+    "papers_with_verified_absence_of_seed_control_in_code": 1,
+    "papers_actually_retrained_in_this_session": 0,
+    "headline_finding": "Across all 7 triaged papers, none reports seed variance for its claimed attention gain. Of the 2 that publish code, the one closest to this project (Rokhva & Teimourpour) sets no random seed anywhere in 1,645 lines, so its 96.40% is a single uncontrolled draw. This establishes that the gap identified in the retrieval is real and verifiable from artefacts, without yet establishing how large the seed noise in those specific papers is - that requires the retraining that this hardware cannot afford.",
+    "honest_limitation": "Verifying that no one reports variance is cheap and is now done. Measuring whether each claimed gain falls inside its own seed noise is expensive and is NOT done: it needs 31.6 h for the single most-comparable paper alone, and the other five either publish no code or no data. The substitute evidence offered here is (a) a resolution audit of Deng et al.'s published ablation tables, which needs no retraining, and (b) a paired CBAM-vs-baseline experiment on this project's own infrastructure, reported separately in docs/benchmarks/food11_cbam_ablation.json."
+  }
+}

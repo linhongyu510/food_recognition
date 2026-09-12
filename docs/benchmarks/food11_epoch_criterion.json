@@ -1,0 +1,180 @@
+{
+  "best_epoch_range": [
+    13,
+    30
+  ],
+  "criterion_note": "every reported accuracy is the maximum validation accuracy over the schedule ('best'); 'last' is the final epoch, which involves no selection. Both rules are applied uniformly to all runs.",
+  "pairs": [
+    {
+      "best_diff_points": 0.7070707070707078,
+      "best_p": 0.01980394118039193,
+      "best_verdict": "significant_parametric_only",
+      "last_diff_points": 0.6565656565656515,
+      "last_p": 0.36338726106329533,
+      "last_verdict": "not_significant",
+      "pair": "b3_380 vs b0_380",
+      "sign_flips": false,
+      "verdict_changes": true
+    },
+    {
+      "best_diff_points": 0.6060606060606026,
+      "best_p": 0.12011730987188159,
+      "best_verdict": "not_significant",
+      "last_diff_points": 1.0606060606060583,
+      "last_p": 0.04446691409409111,
+      "last_verdict": "significant_parametric_only",
+      "pair": "b4_380 vs b0_380",
+      "sign_flips": false,
+      "verdict_changes": true
+    },
+    {
+      "best_diff_points": 0.5555555555555574,
+      "best_p": 0.158808975807939,
+      "best_verdict": "not_significant",
+      "last_diff_points": 0.6565656565656515,
+      "last_p": 0.34423674600308884,
+      "last_verdict": "not_significant",
+      "pair": "b3_380 vs b0_300",
+      "sign_flips": false,
+      "verdict_changes": false
+    },
+    {
+      "best_diff_points": 0.4545454545454519,
+      "best_p": 0.37445675782877885,
+      "best_verdict": "not_significant",
+      "last_diff_points": 1.0606060606060583,
+      "last_p": 0.13617542672078514,
+      "last_verdict": "not_significant",
+      "pair": "b4_380 vs b0_300",
+      "sign_flips": false,
+      "verdict_changes": false
+    },
+    {
+      "best_diff_points": 0.15151515151515066,
+      "best_p": 0.6783662395486612,
+      "best_verdict": "not_significant",
+      "last_diff_points": 0.0,
+      "last_p": 1.0,
+      "last_verdict": "not_significant",
+      "pair": "b0_300 vs b0_380",
+      "sign_flips": true,
+      "verdict_changes": false
+    },
+    {
+      "best_diff_points": 0.10101010101010537,
+      "best_p": 0.6348516283298788,
+      "best_verdict": "not_significant",
+      "last_diff_points": -0.40404040404040664,
+      "last_p": 0.43146475638503856,
+      "last_verdict": "not_significant",
+      "pair": "b3_380 vs b4_380",
+      "sign_flips": true,
+      "verdict_changes": false
+    }
+  ],
+  "per_run": {
+    "b0_300": {
+      "0": {
+        "best": 0.9515151515151515,
+        "best_epoch": 23,
+        "last": 0.9454545454545454,
+        "n_epochs": 30,
+        "selection_gain": 0.0060606060606061
+      },
+      "1": {
+        "best": 0.953030303030303,
+        "best_epoch": 24,
+        "last": 0.943939393939394,
+        "n_epochs": 30,
+        "selection_gain": 0.009090909090909038
+      },
+      "2": {
+        "best": 0.9454545454545454,
+        "best_epoch": 28,
+        "last": 0.9393939393939394,
+        "n_epochs": 30,
+        "selection_gain": 0.006060606060605989
+      }
+    },
+    "b0_380": {
+      "0": {
+        "best": 0.9484848484848485,
+        "best_epoch": 21,
+        "last": 0.9393939393939394,
+        "n_epochs": 30,
+        "selection_gain": 0.009090909090909038
+      },
+      "1": {
+        "best": 0.946969696969697,
+        "best_epoch": 30,
+        "last": 0.946969696969697,
+        "n_epochs": 30,
+        "selection_gain": 0.0
+      },
+      "2": {
+        "best": 0.95,
+        "best_epoch": 29,
+        "last": 0.9424242424242424,
+        "n_epochs": 30,
+        "selection_gain": 0.007575757575757569
+      }
+    },
+    "b3_380": {
+      "0": {
+        "best": 0.9545454545454546,
+        "best_epoch": 25,
+        "last": 0.95,
+        "n_epochs": 30,
+        "selection_gain": 0.00454545454545463
+      },
+      "1": {
+        "best": 0.956060606060606,
+        "best_epoch": 15,
+        "last": 0.9424242424242424,
+        "n_epochs": 30,
+        "selection_gain": 0.013636363636363669
+      },
+      "2": {
+        "best": 0.956060606060606,
+        "best_epoch": 27,
+        "last": 0.956060606060606,
+        "n_epochs": 30,
+        "selection_gain": 0.0
+      }
+    },
+    "b4_380": {
+      "0": {
+        "best": 0.95,
+        "best_epoch": 13,
+        "last": 0.9484848484848485,
+        "n_epochs": 30,
+        "selection_gain": 0.0015151515151514694
+      },
+      "1": {
+        "best": 0.956060606060606,
+        "best_epoch": 20,
+        "last": 0.9545454545454546,
+        "n_epochs": 30,
+        "selection_gain": 0.0015151515151514694
+      },
+      "2": {
+        "best": 0.9575757575757575,
+        "best_epoch": 19,
+        "last": 0.9575757575757575,
+        "n_epochs": 30,
+        "selection_gain": 0.0
+      }
+    }
+  },
+  "selection_gain_points": {
+    "max": 1.3636363636363669,
+    "mean": 0.49242424242424143,
+    "min": 0.0
+  },
+  "unstable_pairs": [
+    "b3_380 vs b0_380",
+    "b4_380 vs b0_380",
+    "b0_300 vs b0_380",
+    "b3_380 vs b4_380"
+  ]
+}

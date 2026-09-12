@@ -1,0 +1,78 @@
+{
+  "measurement_resolution": {
+    "alpha": 0.05,
+    "ci_width_points": 0.5376758288920591,
+    "n_images": 25250,
+    "points_per_image": 0.0039603960396039604,
+    "reference_accuracy": 0.95
+  },
+  "pairs": [
+    {
+      "accuracy_diff": 0.0041188118811881225,
+      "accuracy_diff_points": 0.41188118811881225,
+      "bootstrap": {
+        "alpha": 0.05,
+        "excludes_zero": true,
+        "high": 0.007485148514851485,
+        "low": 0.0007524752475247525,
+        "mean": 0.004118811881188119,
+        "n_observations": 25250,
+        "n_resamples": 10000,
+        "resample_unit": "image",
+        "seed": 20260913
+      },
+      "diff_in_images": 104.00000000000009,
+      "mcnemar": {
+        "accuracy_diff": 0.0041188118811881225,
+        "n_correct_a": 22501,
+        "n_correct_b": 22397,
+        "n_discordant": 1910,
+        "n_images": 25250,
+        "only_a_correct": 1007,
+        "only_b_correct": 903,
+        "p_value": 0.018410505683949304
+      },
+      "run_a": "b4_cbam_224",
+      "run_b": "b0_cbam_224",
+      "significant_at_alpha": true
+    }
+  ],
+  "protocol": {
+    "alpha": 0.05,
+    "bootstrap_resample_unit": "validation image (both runs resampled together)",
+    "bootstrap_resamples": 10000,
+    "bootstrap_rng_seed": 20260913,
+    "bootstrap_type": "percentile",
+    "multiplicity_correction": "none; p-values are per-pair and uncorrected",
+    "not_answered": "whether retraining with another seed would reorder them; that requires the seed-level paired analysis in aggregate_seeds.py",
+    "pairing_unit": "validation image",
+    "question": "given these fixed checkpoints, is the validation set large enough to separate them?",
+    "tails": 2,
+    "tests": [
+      "McNemar exact (binomial on discordant images)",
+      "paired bootstrap CI"
+    ]
+  },
+  "runs": {
+    "b0_cbam_224": {
+      "accuracy": 0.887009900990099,
+      "checkpoint": "runs/bench_food101/checkpoints/best.pt",
+      "image_size": 224,
+      "n_correct": 22397,
+      "n_images": 25250,
+      "wilson_high": 0.8908560054722512,
+      "wilson_low": 0.8830460573829684,
+      "wilson_width_points": 0.7809948089282814
+    },
+    "b4_cbam_224": {
+      "accuracy": 0.8911287128712871,
+      "checkpoint": "runs/b4_food101_224/checkpoints/best.pt",
+      "image_size": 224,
+      "n_correct": 22501,
+      "n_images": 25250,
+      "wilson_high": 0.8949112696939499,
+      "wilson_low": 0.8872271638670559,
+      "wilson_width_points": 0.7684105826893939
+    }
+  }
+}
