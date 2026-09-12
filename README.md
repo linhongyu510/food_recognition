@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 217-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 383-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -31,6 +31,7 @@ evaluation and inference.
 - [Configuration](#configuration)
 - [Self-training](#self-training)
 - [Benchmarks](#benchmarks)
+- [Statistical significance](docs/significance.md)
 - [Project layout](#project-layout)
 - [Development](#development)
 
@@ -667,6 +668,52 @@ Grad-CAM from the 380px B4 model on a validation noodle plate, predicted at
 
 ![Grad-CAM from EfficientNet-B4 + CBAM on Food-11 noodles](docs/benchmarks/gradcam_food11_b4_noodles.png)
 
+#### Formal significance testing
+
+"Inside noise" above was an eyeball comparison of gaps against spreads. Every
+pair has since been tested properly — paired t-test, exact sign-flip permutation
+test, percentile bootstrap CI and effect size — in
+[`docs/significance.md`](docs/significance.md), with the protocol and all six
+comparisons recorded in
+[`docs/benchmarks/food11_seed_significance.json`](docs/benchmarks/food11_seed_significance.json).
+Pairing unit is one seed; the bootstrap resamples seed-level differences, 10,000
+times, at alpha=0.05 two-sided, uncorrected for multiplicity.
+
+The result is **not** uniformly negative, and the eyeball verdict was too coarse
+in one place:
+
+| Pair | diff | bootstrap 95% CI | p (t) | p (exact) | dz | Verdict |
+|---|---:|---|---:|---:|---:|---|
+| `b3`@380 vs `b0`@380 | +0.707 | [+0.606, +0.909] | **0.0198** | 0.250 | +4.04 | significant (parametric only) |
+| `b4`@380 vs `b0`@380 | +0.606 | [+0.152, +0.909] | 0.1201 | 0.250 | +1.51 | not significant |
+| `b3`@380 vs `b0`@300 | +0.556 | [+0.303, +1.061] | 0.1588 | 0.250 | +1.27 | not significant |
+| `b4`@380 vs `b0`@300 | +0.455 | [-0.152, +1.212] | 0.3745 | 0.500 | +0.65 | not significant |
+| `b0`@300 vs `b0`@380 | +0.152 | [-0.455, +0.606] | 0.6784 | 0.750 | +0.28 | not significant |
+| `b3`@380 vs `b4`@380 | +0.101 | [-0.152, +0.455] | 0.6349 | 1.000 | +0.32 | not significant |
+
+Three things follow, and the third is the important one:
+
+1. **`b3`@380 over `b0`@380 is the one gap with real support** — all three seeds
+   agree in sign and magnitude (+0.606, +0.909, +0.606). It should not be lumped
+   in with the rest.
+2. **Three seeds cannot confirm it.** The two-sided exact test's p-value floor is
+   `2/2³ = 0.25`, so it cannot reject at any effect size; six paired seeds is the
+   minimum that could. Hence "parametric only", not "significant".
+3. **It does not survive the epoch-selection check.** All reported accuracies are
+   best-of-30 (verified uniform across all 12 runs), but the best epoch varies
+   from 13 to 30 and best exceeds last-epoch accuracy by **+0.492 points on
+   average** — larger than four of the six gaps being compared. Under a
+   last-epoch rule, four of six pairs change verdict or sign, and `b3`@380 vs
+   `b4`@380 **reverses** (+0.101 → −0.404). See
+   [`docs/benchmarks/food11_epoch_criterion.json`](docs/benchmarks/food11_epoch_criterion.json).
+
+So the three-way tie at the top stands, and the one apparently significant result
+is provisional rather than established. Separately, subsampling a real
+25,250-image validation set shows what a 660-image split costs: a difference that
+genuinely exists is detected 4.5% of the time and measured with the **wrong sign
+38.8%** of the time
+([`food101_validation_power.json`](docs/benchmarks/food101_validation_power.json)).
+
 ### Food-101
 
 | Model | Input | Params | Val accuracy | Macro F1 | Best epoch | Train time |
@@ -685,6 +732,21 @@ the parameters and 2.6x the time**. Both rows are at 224px so the difference is
 the architecture alone; B4's native 380px was measured at 42.1 ms/img here, which
 puts a 30-epoch run near 27 hours, and was skipped on cost rather than tested and
 rejected.
+
+Unlike every Food-11 gap, **this +0.41 is statistically separable** — and the
+25,250-image validation set is the reason. Pairing the two checkpoints image by
+image over the full split gives 1,910 discordant images (1,007 only-B4 right
+against 903 only-B0), McNemar exact **p = 0.0184**, and an image-level bootstrap
+CI of [+0.075, +0.749] points
+([`food101_paired_eval.json`](docs/benchmarks/food101_paired_eval.json)).
+
+Two caveats keep this honest. First, the whole result rests on a 104-image
+imbalance inside those 1,910 disagreements. Second, this answers only "can this
+validation set separate these two *fixed* checkpoints" — it is a single seed per
+config, so it says nothing about whether retraining would preserve the ordering.
+The seed-level question is the one Food-11 answers, and answers negatively. See
+[`docs/significance.md`](docs/significance.md) for why the two must not be
+conflated.
 
 Grad-CAM from this model on a validation pizza, predicted at 0.9651 — heat on
 the crust and pepperoni, not the box:
@@ -841,8 +903,8 @@ src/food_recognition/     # the package
 └── cli.py                # train / eval / predict / gradcam entry points
 
 configs/                  # YAML configs
-scripts/                  # sample data, dataset prep, HF publishing, ablation plot
-tests/                    # 217 tests
+scripts/                  # sample data, dataset prep, HF publishing, plots, significance
+tests/                    # 383 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
@@ -858,7 +920,7 @@ linting, and still contain hard-coded `cuda:0` device assignments.
 ```bash
 pip install -e ".[dev]"
 
-pytest -q                                    # 217 tests
+pytest -q                                    # 383 tests
 pytest -q --cov=food_recognition             # with coverage
 ruff check src tests scripts                 # lint
 ```

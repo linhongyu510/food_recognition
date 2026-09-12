@@ -1,0 +1,430 @@
+{
+  "_significance": {
+    "comparisons": [
+      {
+        "alpha": 0.05,
+        "bootstrap": {
+          "alpha": 0.05,
+          "excludes_zero": true,
+          "high": 0.009090909090909038,
+          "low": 0.0060606060606061,
+          "mean": 0.007070707070707079,
+          "n_observations": 3,
+          "n_resamples": 10000,
+          "resample_unit": "seed",
+          "seed": 20260913
+        },
+        "cell_a": "b3_380",
+        "cell_b": "b0_380",
+        "effect_size_dz": 4.041451884327507,
+        "mean_a": 0.9555555555555556,
+        "mean_b": 0.9484848484848486,
+        "mean_diff": 0.007070707070707079,
+        "notes": [
+          "exact sign-flip test on 3 seeds cannot go below p=0.250, so it cannot confirm anything at alpha=0.05; 6 paired seeds is the minimum that can",
+          "the t-test rejects, but it rests on a normality assumption that 3 points cannot support; treat as provisional"
+        ],
+        "per_seed_diff": [
+          0.00606061,
+          0.00909091,
+          0.00606061
+        ],
+        "permutation": {
+          "exact": true,
+          "min_attainable_p": 0.25,
+          "n": 3,
+          "n_patterns": 8,
+          "observed_abs_mean_diff": 0.007070707070707079,
+          "p_value": 0.25
+        },
+        "power_limited": true,
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "t_test": {
+          "alpha": 0.05,
+          "df": 2,
+          "mean_diff": 0.007070707070707079,
+          "n": 3,
+          "p_value": 0.01980394118039193,
+          "sd_diff": 0.0017495462702715404,
+          "t_ci_high": 0.011416820939140742,
+          "t_ci_low": 0.002724593202273416,
+          "t_stat": 7.0000000000002185
+        },
+        "verdict": "significant_parametric_only"
+      },
+      {
+        "alpha": 0.05,
+        "bootstrap": {
+          "alpha": 0.05,
+          "excludes_zero": true,
+          "high": 0.009090909090909038,
+          "low": 0.0015151515151514694,
+          "mean": 0.006060606060606026,
+          "n_observations": 3,
+          "n_resamples": 10000,
+          "resample_unit": "seed",
+          "seed": 20260913
+        },
+        "cell_a": "b4_380",
+        "cell_b": "b0_380",
+        "effect_size_dz": 1.5118578920368984,
+        "mean_a": 0.9545454545454545,
+        "mean_b": 0.9484848484848486,
+        "mean_diff": 0.006060606060606026,
+        "notes": [
+          "exact sign-flip test on 3 seeds cannot go below p=0.250, so it cannot confirm anything at alpha=0.05; 6 paired seeds is the minimum that can"
+        ],
+        "per_seed_diff": [
+          0.00151515,
+          0.00909091,
+          0.00757576
+        ],
+        "permutation": {
+          "exact": true,
+          "min_attainable_p": 0.25,
+          "n": 3,
+          "n_patterns": 8,
+          "observed_abs_mean_diff": 0.006060606060606026,
+          "p_value": 0.25
+        },
+        "power_limited": true,
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "t_test": {
+          "alpha": 0.05,
+          "df": 2,
+          "mean_diff": 0.006060606060606026,
+          "n": 3,
+          "p_value": 0.12011730987188159,
+          "sd_diff": 0.004008714107673627,
+          "t_ci_high": 0.016018803951103642,
+          "t_ci_low": -0.003897591829891589,
+          "t_stat": 2.61861468283189
+        },
+        "verdict": "not_significant"
+      },
+      {
+        "alpha": 0.05,
+        "bootstrap": {
+          "alpha": 0.05,
+          "excludes_zero": true,
+          "high": 0.010606060606060619,
+          "low": 0.00303030303030305,
+          "mean": 0.005555555555555573,
+          "n_observations": 3,
+          "n_resamples": 10000,
+          "resample_unit": "seed",
+          "seed": 20260913
+        },
+        "cell_a": "b3_380",
+        "cell_b": "b0_300",
+        "effect_size_dz": 1.2701705922171818,
+        "mean_a": 0.9555555555555556,
+        "mean_b": 0.9500000000000001,
+        "mean_diff": 0.005555555555555573,
+        "notes": [
+          "exact sign-flip test on 3 seeds cannot go below p=0.250, so it cannot confirm anything at alpha=0.05; 6 paired seeds is the minimum that can"
+        ],
+        "per_seed_diff": [
+          0.0030303,
+          0.0030303,
+          0.01060606
+        ],
+        "permutation": {
+          "exact": true,
+          "min_attainable_p": 0.25,
+          "n": 3,
+          "n_patterns": 8,
+          "observed_abs_mean_diff": 0.005555555555555573,
+          "p_value": 0.25
+        },
+        "power_limited": true,
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "t_test": {
+          "alpha": 0.05,
+          "df": 2,
+          "mean_diff": 0.005555555555555573,
+          "n": 3,
+          "p_value": 0.158808975807939,
+          "sd_diff": 0.004373865675678979,
+          "t_ci_high": 0.01642084022664005,
+          "t_ci_low": -0.005309729115528902,
+          "t_stat": 2.2000000000000086
+        },
+        "verdict": "not_significant"
+      },
+      {
+        "alpha": 0.05,
+        "bootstrap": {
+          "alpha": 0.05,
+          "excludes_zero": false,
+          "high": 0.012121212121212088,
+          "low": -0.0015151515151515804,
+          "mean": 0.004545454545454519,
+          "n_observations": 3,
+          "n_resamples": 10000,
+          "resample_unit": "seed",
+          "seed": 20260913
+        },
+        "cell_a": "b4_380",
+        "cell_b": "b0_300",
+        "effect_size_dz": 0.6546536707079725,
+        "mean_a": 0.9545454545454545,
+        "mean_b": 0.9500000000000001,
+        "mean_diff": 0.004545454545454519,
+        "notes": [
+          "exact sign-flip test on 3 seeds cannot go below p=0.250, so it cannot confirm anything at alpha=0.05; 6 paired seeds is the minimum that can"
+        ],
+        "per_seed_diff": [
+          -0.00151515,
+          0.0030303,
+          0.01212121
+        ],
+        "permutation": {
+          "exact": true,
+          "min_attainable_p": 0.25,
+          "n": 3,
+          "n_patterns": 8,
+          "observed_abs_mean_diff": 0.004545454545454519,
+          "p_value": 0.5
+        },
+        "power_limited": true,
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "t_test": {
+          "alpha": 0.05,
+          "df": 2,
+          "mean_diff": 0.004545454545454519,
+          "n": 3,
+          "p_value": 0.37445675782877885,
+          "sd_diff": 0.006943296507508857,
+          "t_ci_high": 0.021793559243621606,
+          "t_ci_low": -0.012702650152712568,
+          "t_stat": 1.1338934190276737
+        },
+        "verdict": "not_significant"
+      },
+      {
+        "alpha": 0.05,
+        "bootstrap": {
+          "alpha": 0.05,
+          "excludes_zero": false,
+          "high": 0.006060606060605989,
+          "low": -0.004545454545454519,
+          "mean": 0.0015151515151515065,
+          "n_observations": 3,
+          "n_resamples": 10000,
+          "resample_unit": "seed",
+          "seed": 20260913
+        },
+        "cell_a": "b0_300",
+        "cell_b": "b0_380",
+        "effect_size_dz": 0.2773500981126151,
+        "mean_a": 0.9500000000000001,
+        "mean_b": 0.9484848484848486,
+        "mean_diff": 0.0015151515151515065,
+        "notes": [
+          "exact sign-flip test on 3 seeds cannot go below p=0.250, so it cannot confirm anything at alpha=0.05; 6 paired seeds is the minimum that can"
+        ],
+        "per_seed_diff": [
+          0.0030303,
+          0.00606061,
+          -0.00454545
+        ],
+        "permutation": {
+          "exact": true,
+          "min_attainable_p": 0.25,
+          "n": 3,
+          "n_patterns": 8,
+          "observed_abs_mean_diff": 0.0015151515151515065,
+          "p_value": 0.75
+        },
+        "power_limited": true,
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "t_test": {
+          "alpha": 0.05,
+          "df": 2,
+          "mean_diff": 0.0015151515151515065,
+          "n": 3,
+          "p_value": 0.6783662395486612,
+          "sd_diff": 0.0054629564779756995,
+          "t_ci_high": 0.015085887719741682,
+          "t_ci_low": -0.01205558468943867,
+          "t_stat": 0.4803844614152623
+        },
+        "verdict": "not_significant"
+      },
+      {
+        "alpha": 0.05,
+        "bootstrap": {
+          "alpha": 0.05,
+          "excludes_zero": false,
+          "high": 0.00454545454545463,
+          "low": -0.0015151515151514694,
+          "mean": 0.0010101010101010537,
+          "n_observations": 3,
+          "n_resamples": 10000,
+          "resample_unit": "seed",
+          "seed": 20260913
+        },
+        "cell_a": "b3_380",
+        "cell_b": "b4_380",
+        "effect_size_dz": 0.32025630761018514,
+        "mean_a": 0.9555555555555556,
+        "mean_b": 0.9545454545454545,
+        "mean_diff": 0.0010101010101010537,
+        "notes": [
+          "exact sign-flip test on 3 seeds cannot go below p=0.250, so it cannot confirm anything at alpha=0.05; 6 paired seeds is the minimum that can"
+        ],
+        "per_seed_diff": [
+          0.00454545,
+          0.0,
+          -0.00151515
+        ],
+        "permutation": {
+          "exact": true,
+          "min_attainable_p": 0.25,
+          "n": 3,
+          "n_patterns": 8,
+          "observed_abs_mean_diff": 0.0010101010101010537,
+          "p_value": 1.0
+        },
+        "power_limited": true,
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "t_test": {
+          "alpha": 0.05,
+          "df": 2,
+          "mean_diff": 0.0010101010101010537,
+          "n": 3,
+          "p_value": 0.6348516283298788,
+          "sd_diff": 0.0031540393931305333,
+          "t_ci_high": 0.008845169210922724,
+          "t_ci_low": -0.006824967190720617,
+          "t_stat": 0.5547001962252479
+        },
+        "verdict": "not_significant"
+      }
+    ],
+    "measurement_resolution": {
+      "alpha": 0.05,
+      "ci_width_points": 3.3564844916278647,
+      "n_images": 660,
+      "points_per_image": 0.15151515151515152,
+      "reference_accuracy": 0.95
+    },
+    "protocol": {
+      "alpha": 0.05,
+      "bootstrap_resample_unit": "seed-level paired difference",
+      "bootstrap_resamples": 10000,
+      "bootstrap_rng_seed": 20260913,
+      "bootstrap_type": "percentile",
+      "effect_size": "Cohen's dz (mean difference / SD of differences)",
+      "multiplicity_correction": "none; p-values are per-pair and uncorrected",
+      "pairing_detail": "acc_A(seed_i) - acc_B(seed_i) over seeds present in both cells; same seed means same data order and same schedule",
+      "pairing_unit": "seed",
+      "tails": 2,
+      "tests": [
+        "paired t-test",
+        "exact sign-flip permutation test",
+        "percentile bootstrap CI"
+      ],
+      "units": "accuracies are fractions; *_points fields are percentage points"
+    }
+  },
+  "b0_300": {
+    "max": 0.953030303030303,
+    "mean": 0.9500000000000001,
+    "min": 0.9454545454545454,
+    "n": 3,
+    "per_seed": [
+      0.951515,
+      0.95303,
+      0.945455
+    ],
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "spread": 0.007575757575757569,
+    "std": 0.004008714107673627
+  },
+  "b0_380": {
+    "max": 0.95,
+    "mean": 0.9484848484848485,
+    "min": 0.946969696969697,
+    "n": 4,
+    "per_seed": [
+      0.948485,
+      0.94697,
+      0.95,
+      0.948485
+    ],
+    "seeds": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "spread": 0.003030303030302939,
+    "std": 0.0012371160317086384
+  },
+  "b3_380": {
+    "max": 0.956060606060606,
+    "mean": 0.9555555555555556,
+    "min": 0.9545454545454546,
+    "n": 3,
+    "per_seed": [
+      0.954545,
+      0.956061,
+      0.956061
+    ],
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "spread": 0.0015151515151514694,
+    "std": 0.0008747731351357702
+  },
+  "b4_380": {
+    "max": 0.9575757575757575,
+    "mean": 0.9545454545454545,
+    "min": 0.95,
+    "n": 3,
+    "per_seed": [
+      0.95,
+      0.956061,
+      0.957576
+    ],
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "spread": 0.007575757575757569,
+    "std": 0.004008714107673627
+  }
+}

@@ -5,6 +5,79 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`food_recognition.significance`: paired significance testing.** Paired
+  t-test, exact sign-flip permutation test, percentile bootstrap CI, Cohen's dz,
+  McNemar's exact test, Wilson intervals and validation-set resolution. Pure
+  numpy — the Student-t tail uses a Lentz continued fraction for the incomplete
+  beta — so SciPy is not a runtime dependency. Where SciPy is installed the tests
+  cross-check against it and agree to ~1e-13.
+- **`scripts/aggregate_seeds.py --significance`.** Tests every cell pair and
+  writes the protocol alongside the numbers: pairing unit, bootstrap resampling
+  unit, resample count, RNG seed, alpha, and an explicit "no multiplicity
+  correction". Nested under `_significance` so existing per-cell consumers such as
+  `plot_ablation.py --variance` are unaffected.
+- **`scripts/check_epoch_criterion.py`.** Recomputes every comparison under
+  best-epoch and last-epoch selection and flags pairs whose verdict or sign
+  depends on the choice.
+- **`scripts/dump_predictions.py` and `scripts/compare_runs.py`.** Per-image
+  correctness vectors plus McNemar and an image-level paired bootstrap, with a
+  hash of the file ordering so a mismatched pairing fails loudly.
+- **`scripts/validation_power.py`.** Subsamples a real labelled validation set to
+  measure what enlarging it actually buys, rather than asserting it from a formula.
+- **`scripts/plot_significance.py`.** Seed-distribution, paired-CI and power-floor
+  figures, all read from the report JSON rather than transcribed numbers.
+- **`scripts/audit_significance_doc.py`.** Cross-checks every number in
+  `docs/significance.md` against its source JSON, and blocks the return of the two
+  untraceable figures (94.56% / 84.09%) that CONTRIBUTING.md prohibits.
+- **`docs/significance.md`.** Methods and results, separating what was verified
+  from what compute did not allow.
+
+### Changed
+
+- **The grid's "everything is inside noise" reading is now too coarse.**
+  `b3_cbam`@380 over `b0_cbam`@380 (+0.707 points) has all three seeds agreeing in
+  sign and magnitude, a paired t-test at p=0.0198 and dz=+4.04. It is reported as
+  `significant_parametric_only` with `power_limited: true`, not folded into the
+  negative results — but not upgraded to "significant" either, because the exact
+  test's p-value floor at three seeds is 2/2³ = 0.25 and cannot reject at any
+  effect size.
+- **Epoch selection identified as a confound.** All reported accuracies are
+  best-of-30, verified uniform across all 12 runs, so the pairing is valid. But
+  the best epoch ranges from 13 to 30 and best exceeds last-epoch accuracy by
+  +0.492 points on average — larger than four of the six gaps compared. Under a
+  last-epoch rule four of six pairs change verdict or sign and `b3`@380 vs
+  `b4`@380 reverses (+0.101 → −0.404), so the one positive result is provisional.
+- **Food-101's +0.41-point B4 advantage is separable, and now says why.** Paired
+  image-by-image over all 25,250 validation images: 1,910 discordant, McNemar
+  p=0.0184, bootstrap CI [+0.075, +0.749]. Subsampling that set shows the same
+  difference would be detected only 4.5% of the time at 660 images, with the wrong
+  sign 38.8% of the time.
+- **Food-11 dataset provenance corrected.** The cached copy is the NTU ML2021 HW3
+  semi-supervised re-split (3,080 labelled + 6,786 unlabelled = 9,866, the
+  canonical training-set size), not canonical Food-11. This project trains on
+  31.2% of the canonical training set and validates on 660 images where the
+  canonical split has 3,430, so no figure here is comparable with published
+  Food-11 results. `docs/significance.md` states this explicitly.
+- Test suite 217 → 383; the three hardcoded counts in README updated.
+
+### Fixed
+
+- **Spurious significance from floating-point residue.** `0.92-0.90`, `0.93-0.91`
+  and `0.94-0.92` are all "0.02" but differ around 1e-17. An exact `sd == 0` guard
+  missed that and produced a t statistic of order 1e14 with p ≈ 0 — a "highly
+  significant" verdict from three identical differences. Now uses a 1e-12
+  tolerance, with a regression test.
+- **McNemar two-sided p-value wrong by up to 0.078.** Summing the binomial PMF
+  under a tolerance dropped one of each pair of mirror-image terms. Replaced with
+  the exact symmetric tail 2·P(K ≥ max(b01, b10)), capped at 1, now matching
+  `scipy.stats.binomtest` to 1e-13.
+- **Wilson interval used a slightly wrong normal quantile**, taken from the t
+  quantile at df=1e7 (wrong in the 7th decimal). Now derived from `math.erf`.
+
 ## [0.8.0] - 2026-09-07
 
 ### Changed
