@@ -1,0 +1,31 @@
+batch_size: 32
+checkpoint_name: best.pt
+device: auto
+dropout: 0.3
+early_stopping:
+  enabled: false
+  min_delta: 0.0005
+  patience: 8
+epochs: 30
+grad_clip_norm: 5.0
+image_size: 224
+label_smoothing: 0.1
+learning_rate: 0.0005
+linear_probe: false
+model_name: efficientnet_b0_cbam
+num_classes: 11
+num_workers: 4
+output_dir: runs/cbamabl_efficientnet_b0_cbam_s1
+scheduler: cosine
+seed: 1
+semi_supervised:
+  enabled: false
+train_dir: data_food11/training/labeled
+unlabeled_dir: null
+use_amp: false
+use_autoaugment: true
+use_pretrained: true
+val_dir: data_food11/validation
+val_every_n_epochs: 1
+warmup_epochs: 2
+weight_decay: 0.0001

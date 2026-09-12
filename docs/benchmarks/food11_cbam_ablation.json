@@ -1,0 +1,129 @@
+{
+  "comparison": {
+    "alpha": 0.05,
+    "bootstrap": {
+      "alpha": 0.05,
+      "excludes_zero": true,
+      "high": 0.007575757575757569,
+      "low": 0.00454545454545463,
+      "mean": 0.00656565656565659,
+      "n_observations": 3,
+      "n_resamples": 10000,
+      "resample_unit": "seed",
+      "seed": 20260913
+    },
+    "cell_a": "cbam",
+    "cell_b": "nocbam",
+    "effect_size_dz": 3.7527767497326945,
+    "mean_a": 0.9358585858585858,
+    "mean_b": 0.9292929292929292,
+    "mean_diff": 0.00656565656565659,
+    "notes": [
+      "exact sign-flip test on 3 seeds cannot go below p=0.250, so it cannot confirm anything at alpha=0.05; 6 paired seeds is the minimum that can",
+      "the t-test rejects, but it rests on a normality assumption that 3 points cannot support; treat as provisional"
+    ],
+    "per_seed_diff": [
+      0.00454545,
+      0.00757576,
+      0.00757576
+    ],
+    "permutation": {
+      "exact": true,
+      "min_attainable_p": 0.25,
+      "n": 3,
+      "n_patterns": 8,
+      "observed_abs_mean_diff": 0.00656565656565659,
+      "p_value": 0.25
+    },
+    "power_limited": true,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "t_test": {
+      "alpha": 0.05,
+      "df": 2,
+      "mean_diff": 0.00656565656565659,
+      "n": 3,
+      "p_value": 0.022860163596320992,
+      "sd_diff": 0.0017495462702715404,
+      "t_ci_high": 0.010911770434090253,
+      "t_ci_low": 0.0022195426972229267,
+      "t_stat": 6.500000000000219
+    },
+    "verdict": "significant_parametric_only"
+  },
+  "mean_diff_in_images": 4.333333333333349,
+  "measurement_resolution": {
+    "alpha": 0.05,
+    "ci_width_points": 3.3564844916278647,
+    "n_images": 660,
+    "points_per_image": 0.15151515151515152,
+    "reference_accuracy": 0.95
+  },
+  "protocol": {
+    "alpha": 0.05,
+    "bootstrap_resample_unit": "one paired per-seed difference",
+    "bootstrap_resamples": 10000,
+    "bootstrap_rng_seed": 20260913,
+    "multiplicity_correction": "none; a single pre-planned comparison",
+    "not_answered": "whether any specific published CBAM gain falls inside its own seed noise; that needs those papers retrained, see docs/benchmarks/attention_claims_audit.json",
+    "pairing_unit": "seed (same seed, same split, same schedule)",
+    "question": "Holding everything but the CBAM block fixed, is the CBAM effect on this setup separable from seed noise?",
+    "tails": 2
+  },
+  "provenance": {
+    "commit": "9630798",
+    "configs": [
+      "docs/configs/efficientnet_b0_cbam_s0.yaml",
+      "docs/configs/efficientnet_b0_cbam_s1.yaml",
+      "docs/configs/efficientnet_b0_cbam_s2.yaml",
+      "docs/configs/efficientnet_b0_s0.yaml",
+      "docs/configs/efficientnet_b0_s1.yaml",
+      "docs/configs/efficientnet_b0_s2.yaml"
+    ],
+    "environment": "Python 3.12.14, torch 2.14.0, torchvision 0.29.0",
+    "hardware": "Apple M5 Pro, 18 cores, 48 GB, macOS 26.5.1 arm64; MPS, CUDA unavailable",
+    "metrics_source": "each run's metrics.json, read by scripts/cbam_ablation_report.py",
+    "run_dirs": {
+      "cbam": [
+        "abl/runs/cbamabl_efficientnet_b0_cbam_s0",
+        "abl/runs/cbamabl_efficientnet_b0_cbam_s1",
+        "abl/runs/cbamabl_efficientnet_b0_cbam_s2"
+      ],
+      "nocbam": [
+        "abl/runs/cbamabl_efficientnet_b0_s0",
+        "abl/runs/cbamabl_efficientnet_b0_s1",
+        "abl/runs/cbamabl_efficientnet_b0_s2"
+      ]
+    },
+    "training_note": "runs were serial but shared the machine with a concurrent seed sweep, so wall-clock per run (~22 min) exceeds the 10.7 min measured for this cell in isolation; this affects timing only, not accuracy",
+    "validity_check": "cbam seed 0 reproduced docs/benchmarks/food11_ablation_grid.json cell b0_224 bit-exactly (0.9363636363636364)"
+  },
+  "runs": {
+    "cbam": {
+      "mean": 0.9358585858585858,
+      "missing_seeds": [],
+      "per_seed": {
+        "0": 0.9363636363636364,
+        "1": 0.9348484848484848,
+        "2": 0.9363636363636364
+      }
+    },
+    "nocbam": {
+      "mean": 0.9292929292929294,
+      "missing_seeds": [],
+      "per_seed": {
+        "0": 0.9318181818181818,
+        "1": 0.9272727272727272,
+        "2": 0.9287878787878788
+      }
+    }
+  },
+  "seeds_used": [
+    0,
+    1,
+    2
+  ]
+}
