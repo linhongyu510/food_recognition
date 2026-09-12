@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 390-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 399-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -774,10 +774,15 @@ different code path from training — and reproduced the same figures. All nine
 ablation cells matched to six decimal places across all 660 Food-11 images, and
 Food-101 across all 25,250.
 
-Two caveats stated rather than buried. The Food-11 runs use the **3,080-image
-HW3 split**, not the full 9,866-image Food-11, so they are not directly
-comparable to papers using the latter; and Food-11's `testing/` directory is
-unused because its 3,347 images sit in one directory with no labels.
+Two caveats stated rather than buried. First, the Food-11 runs use the NTU
+ML2021 **HW3 semi-supervised re-split**, not canonical Food-11: training is on
+3,080 labelled images (31.2% of the canonical 9,866) and validation on 660 where
+the canonical split provides 3,430. The remaining 6,786 local "unlabeled" images
+carry no class labels, so they cannot make up the difference. **No figure here is
+comparable with a published Food-11 result**, and none is compared — see
+[`docs/significance.md`](docs/significance.md) §2. Second, Food-11's `testing/`
+directory is unused for the same reason: its 3,347 images sit in one directory
+with no labels.
 
 </details>
 
@@ -904,7 +909,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, dataset prep, HF publishing, plots, significance
-tests/                    # 390 tests
+tests/                    # 399 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
@@ -920,7 +925,7 @@ linting, and still contain hard-coded `cuda:0` device assignments.
 ```bash
 pip install -e ".[dev]"
 
-pytest -q                                    # 390 tests
+pytest -q                                    # 399 tests
 pytest -q --cov=food_recognition             # with coverage
 ruff check src tests scripts                 # lint
 ```

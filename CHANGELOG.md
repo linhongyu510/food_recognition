@@ -62,7 +62,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   31.2% of the canonical training set and validates on 660 images where the
   canonical split has 3,430, so no figure here is comparable with published
   Food-11 results. `docs/significance.md` states this explicitly.
-- Test suite 217 → 390; the three hardcoded counts in README updated.
+- Test suite 217 → 399; the three hardcoded counts in README updated.
 
 ### Fixed
 
@@ -77,6 +77,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `scipy.stats.binomtest` to 1e-13.
 - **Wilson interval used a slightly wrong normal quantile**, taken from the t
   quantile at df=1e7 (wrong in the 7th decimal). Now derived from `math.erf`.
+- **`aggregate_seeds.py` reports drifted with whatever runs were on disk.** A
+  report regenerated while a seed sweep was still running had one cell at n=4 and
+  the rest at n=3, contradicting the n=3 table it was cited for. The paired
+  comparisons were unaffected (cells are only compared on seeds they share), but
+  the per-cell block was not reproducible. New `--seeds 0,1,2` pins the seed set
+  and records it as `_significance.protocol.seeds_included`.
 
 ## [0.8.0] - 2026-09-07
 

@@ -193,3 +193,89 @@ def test_main_json_stays_backward_compatible_without_significance(tmp_path: Path
     assert agg.main([str(tmp_path), "--json-out", str(out)]) == 0
     data = json.loads(out.read_text())
     assert set(data) == {"cell"}          # no extra top-level keys
+
+
+# ---------------------------------------------------------------------------
+# --seeds pinning
+#
+# Regression: a report generated while a sweep was still running had one cell
+# at n=4 and the other three at n=3, because collect() took whatever was on
+# disk. The paired comparisons were still correct (they intersect seeds), but
+# the per-cell block contradicted the n=3 table the report was cited for.
+# ---------------------------------------------------------------------------
+def _sweep_dir(tmp_path: Path) -> Path:
+    seed_dir = tmp_path / "seeds"
+    accs = {
+        ("a", 0): 0.90, ("a", 1): 0.91, ("a", 2): 0.92, ("a", 3): 0.93,
+        ("b", 0): 0.80, ("b", 1): 0.81, ("b", 2): 0.82,
+    }
+    for (cell, seed), acc in accs.items():
+        run = seed_dir / f"{cell}_s{seed}"
+        run.mkdir(parents=True, exist_ok=True)
+        (run / "metrics.json").write_text(json.dumps({"accuracy": acc}))
+    return seed_dir
+
+
+def test_collect_without_seeds_takes_everything_on_disk(tmp_path: Path) -> None:
+    runs = agg.collect(_sweep_dir(tmp_path), None)
+    assert sorted(runs["a"]) == [0, 1, 2, 3]
+    assert sorted(runs["b"]) == [0, 1, 2]
+
+
+def test_collect_pins_to_the_requested_seeds(tmp_path: Path) -> None:
+    runs = agg.collect(_sweep_dir(tmp_path), None, {0, 1, 2})
+    assert sorted(runs["a"]) == [0, 1, 2]
+    assert sorted(runs["b"]) == [0, 1, 2]
+
+
+def test_pinned_seeds_give_every_cell_the_same_n(tmp_path: Path) -> None:
+    """The actual defect: unequal n across cells in one report."""
+    unpinned = agg.collect(_sweep_dir(tmp_path), None)
+    assert len({len(v) for v in unpinned.values()}) == 2  # the bug
+
+    pinned = agg.collect(_sweep_dir(tmp_path), None, {0, 1, 2})
+    assert len({len(v) for v in pinned.values()}) == 1  # fixed
+
+
+def test_seed_filter_excludes_grid_seed_zero_when_not_requested(tmp_path: Path) -> None:
+    seed_dir = tmp_path / "seeds"
+    run = seed_dir / "a_s1"
+    run.mkdir(parents=True)
+    (run / "metrics.json").write_text(json.dumps({"accuracy": 0.91}))
+    grid = {"a": {"acc": 0.90}}
+
+    with_zero = agg.collect(seed_dir, grid, {0, 1})
+    assert sorted(with_zero["a"]) == [0, 1]
+
+    without_zero = agg.collect(seed_dir, grid, {1})
+    assert sorted(without_zero["a"]) == [1]
+
+
+def test_protocol_records_the_pinned_seed_set(tmp_path: Path) -> None:
+    runs = agg.collect(_sweep_dir(tmp_path), None, {0, 1, 2})
+    report = agg.significance_report(runs, seed_filter={0, 1, 2})
+    assert report["protocol"]["seeds_included"] == [0, 1, 2]
+
+
+def test_protocol_says_so_when_seeds_are_not_pinned(tmp_path: Path) -> None:
+    runs = agg.collect(_sweep_dir(tmp_path), None)
+    report = agg.significance_report(runs)
+    assert report["protocol"]["seeds_included"] == "all seeds found on disk"
+
+
+def test_main_accepts_a_seed_list(tmp_path: Path) -> None:
+    out = tmp_path / "r.json"
+    rc = agg.main([str(_sweep_dir(tmp_path)), "--significance",
+                   "--seeds", "0,1,2", "--json-out", str(out)])
+    assert rc == 0
+    payload = json.loads(out.read_text())
+    assert payload["a"]["n"] == payload["b"]["n"] == 3
+    assert payload["_significance"]["protocol"]["seeds_included"] == [0, 1, 2]
+
+
+def test_main_rejects_a_malformed_seed_list(tmp_path: Path) -> None:
+    assert agg.main([str(_sweep_dir(tmp_path)), "--seeds", "0,x,2"]) == 2
+
+
+def test_main_rejects_an_empty_seed_list(tmp_path: Path) -> None:
+    assert agg.main([str(_sweep_dir(tmp_path)), "--seeds", ","]) == 2

@@ -344,6 +344,11 @@
       "multiplicity_correction": "none; p-values are per-pair and uncorrected",
       "pairing_detail": "acc_A(seed_i) - acc_B(seed_i) over seeds present in both cells; same seed means same data order and same schedule",
       "pairing_unit": "seed",
+      "seeds_included": [
+        0,
+        1,
+        2
+      ],
       "tails": 2,
       "tests": [
         "paired t-test",
@@ -373,23 +378,21 @@
   },
   "b0_380": {
     "max": 0.95,
-    "mean": 0.9484848484848485,
+    "mean": 0.9484848484848486,
     "min": 0.946969696969697,
-    "n": 4,
+    "n": 3,
     "per_seed": [
       0.948485,
       0.94697,
-      0.95,
-      0.948485
+      0.95
     ],
     "seeds": [
       0,
       1,
-      2,
-      3
+      2
     ],
     "spread": 0.003030303030302939,
-    "std": 0.0012371160317086384
+    "std": 0.0015151515151514694
   },
   "b3_380": {
     "max": 0.956060606060606,

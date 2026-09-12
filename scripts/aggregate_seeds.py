@@ -63,8 +63,18 @@ from food_recognition.significance import (  # noqa: E402
 RUN_RE = re.compile(r"^(?P<cell>.+)_s(?P<seed>\d+)$")
 
 
-def collect(seed_dir: Path, grid: dict | None) -> dict[str, dict[int, float]]:
-    """Map cell -> {seed: accuracy}, merging seed 0 from the grid JSON."""
+def collect(
+    seed_dir: Path, grid: dict | None, seeds: set[int] | None = None
+) -> dict[str, dict[int, float]]:
+    """Map cell -> {seed: accuracy}, merging seed 0 from the grid JSON.
+
+    ``seeds``, when given, restricts the result to exactly those seed numbers.
+    Without it the report silently changes shape as new runs land in
+    ``seed_dir``: a report written while a sweep was still going had one cell at
+    n=4 and the rest at n=3, which contradicted the n=3 table it was cited for.
+    Pinning the seed set makes a committed report reproducible regardless of
+    what else has since finished.
+    """
     out: dict[str, dict[int, float]] = {}
     for child in sorted(seed_dir.iterdir()):
         if not child.is_dir():
@@ -73,12 +83,15 @@ def collect(seed_dir: Path, grid: dict | None) -> dict[str, dict[int, float]]:
         metrics = child / "metrics.json"
         if match is None or not metrics.is_file():
             continue
+        seed = int(match.group("seed"))
+        if seeds is not None and seed not in seeds:
+            continue
         acc = json.loads(metrics.read_text())["accuracy"]
-        out.setdefault(match.group("cell"), {})[int(match.group("seed"))] = acc
+        out.setdefault(match.group("cell"), {})[seed] = acc
 
     if grid:
         for cell in out:
-            if cell in grid and 0 not in out[cell]:
+            if cell in grid and 0 not in out[cell] and (seeds is None or 0 in seeds):
                 out[cell][0] = grid[cell]["acc"]
     return out
 
@@ -107,6 +120,7 @@ def significance_report(
     n_resamples: int = DEFAULT_RESAMPLES,
     seed: int = DEFAULT_SEED,
     resolution_images: int | None = None,
+    seed_filter: set[int] | None = None,
 ) -> dict:
     """Build the paired-comparison section, protocol included."""
     comparisons = pairwise_comparisons(
@@ -131,6 +145,9 @@ def significance_report(
                 "percentile bootstrap CI",
             ],
             "effect_size": "Cohen's dz (mean difference / SD of differences)",
+            "seeds_included": (
+                sorted(seed_filter) if seed_filter is not None else "all seeds found on disk"
+            ),
             "multiplicity_correction": "none; p-values are per-pair and uncorrected",
             "units": "accuracies are fractions; *_points fields are percentage points",
         },
@@ -214,14 +231,36 @@ def main(argv: list[str] | None = None) -> int:
         metavar="N",
         help="Report the measurement resolution of an N-image validation set.",
     )
+    ap.add_argument(
+        "--seeds",
+        type=str,
+        default=None,
+        metavar="LIST",
+        help=(
+            "Comma-separated seeds to include, e.g. '0,1,2'. Pins the report to a "
+            "fixed seed set so it stays reproducible while further runs land."
+        ),
+    )
     args = ap.parse_args(argv)
+
+    seeds: set[int] | None = None
+    if args.seeds is not None:
+        try:
+            seeds = {int(part) for part in args.seeds.split(",") if part.strip()}
+        except ValueError:
+            print(f"error: --seeds must be comma-separated integers: {args.seeds}",
+                  file=sys.stderr)
+            return 2
+        if not seeds:
+            print("error: --seeds was empty", file=sys.stderr)
+            return 2
 
     if not args.seed_dir.is_dir():
         print(f"error: not a directory: {args.seed_dir}", file=sys.stderr)
         return 2
 
     grid = json.loads(args.grid.read_text()) if args.grid else None
-    runs = collect(args.seed_dir, grid)
+    runs = collect(args.seed_dir, grid, seeds)
     if not runs:
         print(f"error: no <cell>_s<seed>/metrics.json under {args.seed_dir}", file=sys.stderr)
         return 1
@@ -248,6 +287,7 @@ def main(argv: list[str] | None = None) -> int:
             n_resamples=args.resamples,
             seed=args.rng_seed,
             resolution_images=args.resolution,
+            seed_filter=seeds,
         )
         print_significance(sig)
         # Nested under a reserved key so per-cell entries stay addressable by

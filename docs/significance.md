@@ -219,7 +219,7 @@ all 30-epoch runs on the 660-image split.
 ```bash
 python scripts/aggregate_seeds.py ../seeds \
   --grid docs/benchmarks/food11_ablation_grid.json \
-  --significance --resolution 660 \
+  --significance --resolution 660 --seeds 0,1,2 \
   --json-out docs/benchmarks/food11_seed_significance.json
 ```
 
@@ -317,7 +317,7 @@ dependency**. Where SciPy is installed the test suite cross-checks against it an
 agrees to ~1e-13 (`scipy.stats.ttest_1samp`, `scipy.stats.t.sf`,
 `scipy.stats.binomtest`).
 
-Test count: **217 -> 390** (+173). `ruff check src tests scripts app.py` clean
+Test count: **217 -> 399** (+182). `ruff check src tests scripts app.py` clean
 with no `--select` narrowing; full `pytest -q` green.
 
 Three defects were found by these tests and fixed, each with a regression test
@@ -372,10 +372,13 @@ The most valuable missing experiment. §3.4 shows n=660 gives 4.5% power and a
 38.8% sign-flip rate, so no amount of seed averaging fixes a split this small.
 `testing/` (3,347 images) is unlabelled and cannot be used. Options, none run:
 
-- Re-split the 9,866 canonical training images to recover the canonical
-  3,430-image validation split. Retraining every cell on the changed training
-  set: `2 x (10.7 + 18 + 25 + 51.5 + 77.3 + ...)` — full 9-cell grid at 3 seeds
-  is **~19 h**.
+- Obtain the canonical Food-11 release and re-split it to recover the canonical
+  3,430-image validation set. Note this cannot be done from the local cache
+  alone: the 6,786 `training/unlabeled` images sit in a single `00/` directory
+  with **no class labels**, so only 3,080 of the local 9,866 are usable as
+  supervised data. Canonical labels would have to be fetched first. Retraining
+  every cell on the changed training set is a full 9-cell grid at 3 seeds,
+  **~19 h**, on top of that download.
 - Label a subset of `testing/` by hand. Not attempted; no ground truth available.
 
 ### 6.3 Multi-seed Food-101 runs
@@ -409,7 +412,7 @@ n=3 power limitation.**
 # Seed-level analysis (Question B)
 python scripts/aggregate_seeds.py ../seeds \
   --grid docs/benchmarks/food11_ablation_grid.json \
-  --significance --resolution 660 \
+  --significance --resolution 660 --seeds 0,1,2 \
   --json-out docs/benchmarks/food11_seed_significance.json
 
 # Epoch-selection sensitivity
@@ -435,8 +438,17 @@ python scripts/plot_significance.py \
   --output-dir docs/benchmarks
 ```
 
-When the §6.5 runs finish, re-running the first two commands picks the new seeds
-up automatically (`aggregate_seeds.py` discovers `<cell>_s<seed>/metrics.json`).
+`--seeds 0,1,2` pins the report to the three seeds this section reports. It
+matters: `aggregate_seeds.py` otherwise takes whatever `<cell>_s<seed>/metrics.json`
+directories exist, so regenerating while the §6.5 sweep is running yields a
+report whose cells have unequal n. The paired comparisons stay correct either way
+(cells are only ever compared on seeds they share) but the per-cell block would
+no longer match the n=3 table below. The pinned set is recorded in the output as
+`_significance.protocol.seeds_included`.
+
+When the §6.5 runs finish, re-run the first two commands with the seed list
+widened (e.g. `--seeds 0,1,2,3,4,5`) rather than dropped, so the report stays
+explicit about what went into it.
 The `b0_380` vs `b3_380` pair will then have 6 paired seeds and its exact-test
 floor drops to 0.031, at which point `significant_parametric_only` can become
 either `significant` or `not_significant`. Add the new run directories to
