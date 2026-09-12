@@ -9,7 +9,8 @@
       "HuggingFace model API (search by task keywords)",
       "Google Scholar author profiles"
     ],
-    "cost_basis": "Measured on this machine, not assumed. EfficientNet-B7 @256, batch 16, MPS: 1.755 s/optimiser step over 5 timed steps after 2 warmup steps -> 18.0 min/epoch on the 9,866-image Food-11 train split. EfficientNet-B0-CBAM @224, batch 32, 30 epochs: 10.7 min/run (docs/benchmarks/food11_ablation_grid.json, cell b0_224).",
+    "cost_basis": "Measured on this machine, not assumed. EfficientNet-B7 @256, batch 16, MPS: 1.755 s/optimiser step over 5 timed steps after 2 warmup steps -> 18.0 min/epoch assuming the 9,866-image canonical Food-11 train split that Rokhva et al. use (617 steps/epoch), NOT this project's 3,080-image labelled split. EfficientNet-B0-CBAM @224, batch 32, 30 epochs: 10.7 min/run (docs/benchmarks/food11_ablation_grid.json, cell b0_224), on this project's 3,080-image split.",
+    "correction_history": "The 14,217-byte snapshot of this file that reached main in commit ad0e8a7 (PR #14) was an intermediate version committed by a parallel work-stream, not a finished audit. Two leaf values in it were wrong and are corrected here: (1) papers[rokhva2025].data.notes asserted that this project already holds the same 16,643-image Food-11 corpus locally, split 9,866 / 3,430 / 3,347 - it does not; the local cache is the NTU ML2021-HW3 semi-supervised re-split (3,080 labelled train / 660 validation), verified by file count, where 3,080 + 6,786 unlabelled = 9,866 exactly matches the canonical training-set size and 3,430 - 660 = 2,770 accounts for the shortfall; (2) _meta.cost_basis folded this project's 3,080-image split together with the canonical split when projecting B7 epoch time, and now states the 617-steps/epoch canonical basis explicitly. No key was added or removed relative to that snapshot.",
     "serialisation_constraint": "Two concurrent MPS trainings slow each other by roughly 2x, so all reproduction runs must be serial. Wall-clock estimates below assume serial execution."
   },
   "papers": [
@@ -34,7 +35,7 @@
       },
       "data": {
         "obtainable": true,
-        "notes": "Kaggle Food-11. This project already holds the same 16,643-image corpus locally, split 9,866 train / 3,430 valid / 3,347 eval, matching the per-class counts hardcoded in the authors' script."
+        "notes": "Kaggle Food-11, the canonical 16,643-image release, split by the authors 9,866 train / 3,430 valid / 3,347 eval. IMPORTANT: this project's own cached Food-11 is NOT that release - it is the NTU ML2021-HW3 semi-supervised re-split with 3,080 labelled training images and a 660-image validation split (see docs/significance.md section 2). Reproducing Rokhva et al. would therefore require downloading the canonical release separately; this project's existing runs are not comparable to theirs, and no number from this project may be quoted against their 96.40%."
       },
       "seed_variance_reported": false,
       "seed_control_in_code": {
@@ -45,7 +46,7 @@
       "reported_metric_caveat": "Accuracy is computed with torchmetrics Accuracy(task='multiclass', average='macro'), i.e. macro-averaged recall, on an imbalanced 11-class split. It is therefore not directly comparable to the micro/top-1 accuracy this project reports, and the comparison would have to be re-derived rather than quoted.",
       "measurement_resolution": {
         "eval_set_images": 3347,
-        "points_per_image": 0.029877502240812673,
+        "points_per_image": 0.029877502240812672,
         "note": "Their eval split is 3,347 images, so one image is worth 0.0299 pts there."
       },
       "reproduction_cost": {
@@ -68,7 +69,9 @@
         "found_via": "GitHub search API returned 0 repositories for the method name and for the MSLF module; no code or data availability statement on the SciOpen article page",
         "notes": "The custom Roushi60 dataset (60 classes, 5,395 images) introduced by the paper is also not published, so two of its three benchmarks are not reconstructable."
       },
-      "weights": {"available": false},
+      "weights": {
+        "available": false
+      },
       "data": {
         "obtainable": "partially",
         "notes": "ETH Food-101 is available and already local. ChineseFoodNet requires separate access. Roushi60 is unpublished."
@@ -76,16 +79,34 @@
       "seed_variance_reported": false,
       "resolution_check_no_retraining_needed": {
         "test_set_images": 25250,
-        "points_per_image": 0.003960396039603960,
+        "points_per_image": 0.00396039603960396,
         "module_ablation_table5": [
-          {"comparison": "ConvNeXt-B -> +HA", "delta_points": 0.70, "delta_in_images": 176.8},
-          {"comparison": "ConvNeXt-B -> +MSLF", "delta_points": 0.75, "delta_in_images": 189.4},
-          {"comparison": "ConvNeXt-B -> MAMS-net (full)", "delta_points": 1.04, "delta_in_images": 262.6}
+          {
+            "comparison": "ConvNeXt-B -> +HA",
+            "delta_points": 0.7,
+            "delta_in_images": 176.8
+          },
+          {
+            "comparison": "ConvNeXt-B -> +MSLF",
+            "delta_points": 0.75,
+            "delta_in_images": 189.4
+          },
+          {
+            "comparison": "ConvNeXt-B -> MAMS-net (full)",
+            "delta_points": 1.04,
+            "delta_in_images": 262.6
+          }
         ],
         "stage_placement_table6": {
           "values_percent": {
-            "stage1": 89.98, "stage2": 90.68, "stage3": 90.70, "stage4": 90.71,
-            "s2+s3": 90.76, "s2+s4": 90.76, "s3+s4": 90.75, "s2+s3+s4": 90.78
+            "stage1": 89.98,
+            "stage2": 90.68,
+            "stage3": 90.7,
+            "stage4": 90.71,
+            "s2+s3": 90.76,
+            "s2+s4": 90.76,
+            "s3+s4": 90.75,
+            "s2+s3+s4": 90.78
           },
           "best_minus_second_points": 0.02,
           "best_minus_second_in_images": 5.0,
@@ -107,22 +128,44 @@
       "citation": "Xu, B., He, X. & Qu, Z. (2021). Asian Food Image Classification Based on Deep Learning. Journal of Computer and Communications, 9(3), 10-28.",
       "claim": "CBAM combined with MobileNetV2 / VGG16 / ResNet50 plus Mixup; top-1 87.33%.",
       "why_relevant": "Frequently cited as prior art for CBAM-plus-food; reports per-module contributions of CBAM and Mixup separately.",
-      "code": {"available": false, "found_via": "no availability statement on the SCIRP page; GitHub search returned nothing attributable to these authors"},
-      "weights": {"available": false},
-      "data": {"obtainable": false, "notes": "The Asian-food corpus used is not a standard public benchmark."},
+      "code": {
+        "available": false,
+        "found_via": "no availability statement on the SCIRP page; GitHub search returned nothing attributable to these authors"
+      },
+      "weights": {
+        "available": false
+      },
+      "data": {
+        "obtainable": false,
+        "notes": "The Asian-food corpus used is not a standard public benchmark."
+      },
       "seed_variance_reported": false,
-      "reproduction_cost": {"blocker": "no code and no dataset", "verdict": "not reproducible"},
+      "reproduction_cost": {
+        "blocker": "no code and no dataset",
+        "verdict": "not reproducible"
+      },
       "status": "NOT REPRODUCED - blocked on both code and data"
     },
     {
       "id": "bsam2025",
       "citation": "The brief self-attention module for lightweight CNNs (BSAM). Journal of Systems Engineering and Electronics, 2025.",
       "claim": "Lightweight self-attention evaluated on Food-101, Caltech-256 and Mini-ImageNet.",
-      "code": {"available": false, "found_via": "GitHub search API returned 0 repositories for the module name"},
-      "weights": {"available": false},
-      "data": {"obtainable": true, "notes": "Food-101 is local."},
+      "code": {
+        "available": false,
+        "found_via": "GitHub search API returned 0 repositories for the module name"
+      },
+      "weights": {
+        "available": false
+      },
+      "data": {
+        "obtainable": true,
+        "notes": "Food-101 is local."
+      },
       "seed_variance_reported": false,
-      "reproduction_cost": {"blocker": "no code; module would need reimplementation from prose", "verdict": "not reproducible within session budget"},
+      "reproduction_cost": {
+        "blocker": "no code; module would need reimplementation from prose",
+        "verdict": "not reproducible within session budget"
+      },
       "status": "NOT REPRODUCED"
     },
     {
@@ -130,9 +173,16 @@
       "citation": "Singh, S. & Susan, S. (2023). Xception-based food classification. IEEE (doc 10307479).",
       "claim": "84.54% on Food-101 with Xception.",
       "why_relevant": "A no-attention baseline on the same dataset, useful as a reference point for how large architecture-level differences are on Food-101.",
-      "code": {"available": false, "found_via": "GitHub search returned nothing attributable; paper is paywalled with no availability statement surfaced"},
-      "weights": {"available": false},
-      "data": {"obtainable": true},
+      "code": {
+        "available": false,
+        "found_via": "GitHub search returned nothing attributable; paper is paywalled with no availability statement surfaced"
+      },
+      "weights": {
+        "available": false
+      },
+      "data": {
+        "obtainable": true
+      },
       "seed_variance_reported": false,
       "status": "NOT REPRODUCED"
     },
@@ -141,9 +191,16 @@
       "citation": "Sayudha & Sthevanie (2025). Attention-Enhanced Deep Residual Networks (ResNet50 + CBAM) for banana ripeness. ICoDSA 2025.",
       "claim": "94.42% with ResNet50 + CBAM.",
       "why_relevant": "Adjacent food-domain CBAM claim; included to test whether the no-variance-reporting pattern generalises beyond food-dish classification.",
-      "code": {"available": false},
-      "weights": {"available": false},
-      "data": {"obtainable": false, "notes": "banana ripeness dataset not identified as a standard public release"},
+      "code": {
+        "available": false
+      },
+      "weights": {
+        "available": false
+      },
+      "data": {
+        "obtainable": false,
+        "notes": "banana ripeness dataset not identified as a standard public release"
+      },
       "seed_variance_reported": false,
       "status": "NOT REPRODUCED"
     },
@@ -158,8 +215,13 @@
         "found_via": "GitHub search API; also stated in the ACM/IEEE landing page",
         "stars": 11
       },
-      "weights": {"available": "claimed in the paper landing page; not verified by download in this audit"},
-      "data": {"obtainable": "partially", "notes": "Food-101 local; Food-172 and Food-200 need separate access."},
+      "weights": {
+        "available": "claimed in the paper landing page; not verified by download in this audit"
+      },
+      "data": {
+        "obtainable": "partially",
+        "notes": "Food-101 local; Food-172 and Food-200 need separate access."
+      },
       "seed_variance_reported": false,
       "reproduction_cost": {
         "blocker": "transformer at Food-101 scale; this machine already needs 11.2 h for EfficientNet-B4 @224 for 30 epochs, and 254 min for EfficientNet-B0 @224. A bi-branch transformer would exceed both by a wide margin, times 3 seeds.",
@@ -171,7 +233,10 @@
   "summary": {
     "papers_triaged": 7,
     "code_publicly_available": 2,
-    "code_available_ids": ["rokhva2025", "liu2024_cbiaformer"],
+    "code_available_ids": [
+      "rokhva2025",
+      "liu2024_cbiaformer"
+    ],
     "weights_publicly_available": 0,
     "papers_reporting_seed_variance": 0,
     "papers_with_verified_absence_of_seed_control_in_code": 1,
