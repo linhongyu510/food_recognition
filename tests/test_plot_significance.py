@@ -132,8 +132,139 @@ def test_main_writes_all_three_panels(tmp_path: Path) -> None:
         assert (tmp_path / f"f11_{name}.png").is_file()
 
 
+def _power_report() -> dict:
+    """Minimal stand-in for the JSON written by ``validation_power.py``."""
+    return {
+        "full_set": {"accuracy_diff_points": 0.41188118811881225, "n_images": 25250},
+        "protocol": {"trials_per_size": 400},
+        "sizes": [
+            {
+                "n_images": 660,
+                "sign_flip_rate": 0.3875,
+                "points_per_image": 0.15151515151515152,
+                "single_run_ci_width_points": 3.3564844916278647,
+            },
+            {
+                "n_images": 5000,
+                "sign_flip_rate": 0.145,
+                "points_per_image": 0.02,
+                "single_run_ci_width_points": 1.2097138349410397,
+            },
+            {
+                "n_images": 25250,
+                "sign_flip_rate": 0.0,
+                "points_per_image": 0.0039603960396039604,
+                "single_run_ci_width_points": 0.5376758288920591,
+            },
+        ],
+    }
+
+
+def test_validation_power_is_written(tmp_path: Path) -> None:
+    out = tmp_path / "vp.png"
+    plot.plot_validation_power(_power_report(), out)
+    assert out.is_file() and out.stat().st_size > 5000
+
+
+def test_validation_power_sorts_sizes(tmp_path: Path) -> None:
+    """Rows arriving out of order must not produce a zig-zag line."""
+    shuffled = _power_report()
+    shuffled["sizes"] = list(reversed(shuffled["sizes"]))
+    out = tmp_path / "vp_shuffled.png"
+    plot.plot_validation_power(shuffled, out)
+    assert out.is_file()
+
+
+def test_main_adds_validation_power_panel_when_requested(tmp_path: Path) -> None:
+    report_path = tmp_path / "report.json"
+    report_path.write_text(json.dumps(_report()))
+    power_path = tmp_path / "power_report.json"
+    power_path.write_text(json.dumps(_power_report()))
+    rc = plot.main(
+        [
+            "--report",
+            str(report_path),
+            "--output-dir",
+            str(tmp_path),
+            "--prefix",
+            "f11",
+            "--power-report",
+            str(power_path),
+        ]
+    )
+    assert rc == 0
+    assert (tmp_path / "f11_validation_power.png").is_file()
+
+
+def test_main_omits_validation_power_panel_by_default(tmp_path: Path) -> None:
+    report_path = tmp_path / "report.json"
+    report_path.write_text(json.dumps(_report()))
+    rc = plot.main(
+        ["--report", str(report_path), "--output-dir", str(tmp_path), "--prefix", "f11"]
+    )
+    assert rc == 0
+    assert not (tmp_path / "f11_validation_power.png").exists()
+
+
 def test_main_rejects_report_without_cells(tmp_path: Path) -> None:
     report_path = tmp_path / "empty.json"
     report_path.write_text(json.dumps({"_significance": {"comparisons": []}}))
     rc = plot.main(["--report", str(report_path), "--output-dir", str(tmp_path)])
     assert rc == 1
+
+
+# ---------------------------------------------------------------------------
+# the validation-size panel
+# ---------------------------------------------------------------------------
+def _power_report() -> dict:
+    return {
+        "protocol": {"trials_per_size": 400, "resample_unit": "validation image"},
+        "full_set": {"n_images": 25250, "accuracy_diff_points": 0.4119, "p_value": 0.0184},
+        "sizes": [
+            {
+                "n_images": 660,
+                "points_per_image": 0.15151515151515152,
+                "single_run_ci_width_points": 3.3564849059046553,
+                "sign_flip_rate": 0.388,
+                "power_at_alpha": 0.045,
+            },
+            {
+                "n_images": 25250,
+                "points_per_image": 0.0039603960396039604,
+                "single_run_ci_width_points": 0.5376758941044724,
+                "sign_flip_rate": 0.0,
+                "power_at_alpha": 1.0,
+            },
+        ],
+    }
+
+
+def test_validation_power_panel_is_written(tmp_path: Path) -> None:
+    out = tmp_path / "vp.png"
+    plot.plot_validation_power(_power_report(), out)
+    assert out.is_file() and out.stat().st_size > 5000
+
+
+def test_validation_power_handles_unsorted_sizes(tmp_path: Path) -> None:
+    report = _power_report()
+    report["sizes"] = list(reversed(report["sizes"]))
+    out = tmp_path / "vp.png"
+    plot.plot_validation_power(report, out)
+    assert out.is_file()
+
+
+def test_main_adds_the_fourth_panel_only_when_asked(tmp_path: Path) -> None:
+    report_path = tmp_path / "report.json"
+    report_path.write_text(json.dumps(_report()))
+    power_path = tmp_path / "power.json"
+    power_path.write_text(json.dumps(_power_report()))
+
+    # Without --power-report: three panels.
+    assert plot.main(["--report", str(report_path), "--output-dir", str(tmp_path),
+                      "--prefix", "a"]) == 0
+    assert not (tmp_path / "a_validation_power.png").exists()
+
+    # With it: four.
+    assert plot.main(["--report", str(report_path), "--output-dir", str(tmp_path),
+                      "--prefix", "b", "--power-report", str(power_path)]) == 0
+    assert (tmp_path / "b_validation_power.png").is_file()

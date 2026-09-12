@@ -62,7 +62,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   31.2% of the canonical training set and validates on 660 images where the
   canonical split has 3,430, so no figure here is comparable with published
   Food-11 results. `docs/significance.md` states this explicitly.
-- Test suite 217 → 383; the three hardcoded counts in README updated.
+- Test suite 217 → 390; the three hardcoded counts in README updated.
 
 ### Fixed
 

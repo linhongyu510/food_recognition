@@ -19,6 +19,13 @@ Three panels are written:
 ``food11_power.png``
     The exact sign-flip test's p-value floor against the number of paired seeds,
     marking where the current design sits and where alpha becomes reachable.
+
+With ``--power-report`` (the JSON from ``scripts/validation_power.py``) a fourth
+panel is written:
+
+``<prefix>_validation_power.png``
+    The measured sign-flip rate and measurement granularity against validation
+    subset size, i.e. what enlarging the labelled set actually buys.
 """
 
 from __future__ import annotations
@@ -215,11 +222,79 @@ def plot_power_floor(report: dict, output: Path, *, alpha: float = 0.05) -> None
     print(f"wrote {output}")
 
 
+def plot_validation_power(power: dict, output: Path) -> None:
+    """Measured effect of validation-set size, from ``validation_power.py``.
+
+    Two paired panels against subset size: how often a subset recovers the
+    sign of the full-set difference, and what one image is worth. Both come
+    from the measured JSON, never from a formula.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    rows = sorted(power["sizes"], key=lambda r: r["n_images"])
+    ns = [r["n_images"] for r in rows]
+    flip = [r["sign_flip_rate"] * 100 for r in rows]
+    ppi = [r["points_per_image"] for r in rows]
+    ci = [r["single_run_ci_width_points"] for r in rows]
+    trials = power["protocol"]["trials_per_size"]
+    full = power["full_set"]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.5, 4.6))
+
+    ax1.plot(ns, flip, "o-", color=POSITIVE, linewidth=2)
+    for n, y in zip(ns, flip, strict=True):
+        ax1.annotate(f"{y:.1f}%", (n, y), textcoords="offset points",
+                     xytext=(0, 8), ha="center", fontsize=8)
+    ax1.set_xscale("log")
+    ax1.set_xticks(ns)
+    ax1.set_xticklabels([f"{n:,}" for n in ns], rotation=45, fontsize=8)
+    ax1.set_xlabel("Validation images in the subset (log scale)")
+    ax1.set_ylabel("Runs where the sign flipped (%)")
+    ax1.set_title(
+        "How often a smaller split reverses the verdict\n"
+        f"true difference {full['accuracy_diff_points']:+.3f} pts, "
+        f"{trials} subsets per size",
+        fontsize=10,
+    )
+    ax1.grid(alpha=GRID_ALPHA, which="both")
+    # Headroom so the topmost value label is not clipped by the axes.
+    y_lo, y_hi = ax1.get_ylim()
+    ax1.set_ylim(y_lo, y_hi + 0.10 * (y_hi - y_lo))
+
+    ax2.plot(ns, ppi, "o-", color=ACCENT, linewidth=2, label="1 image (pts)")
+    ax2.plot(ns, ci, "s--", color=NEUTRAL, linewidth=1.6,
+             label="single-run 95% CI width (pts)")
+    ax2.set_xscale("log")
+    ax2.set_yscale("log")
+    ax2.set_xticks(ns)
+    ax2.set_xticklabels([f"{n:,}" for n in ns], rotation=45, fontsize=8)
+    ax2.set_xlabel("Validation images in the subset (log scale)")
+    ax2.set_ylabel("Percentage points (log scale)")
+    ax2.set_title("Measurement granularity vs set size", fontsize=10)
+    ax2.grid(alpha=GRID_ALPHA, which="both")
+    ax2.legend(fontsize=8)
+
+    fig.tight_layout()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {output}")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--report", required=True, type=Path)
     ap.add_argument("--output-dir", required=True, type=Path)
     ap.add_argument("--prefix", default="food11")
+    ap.add_argument(
+        "--power-report",
+        type=Path,
+        default=None,
+        help="JSON from validation_power.py; adds the validation-size panel.",
+    )
     args = ap.parse_args(argv)
 
     report = json.loads(args.report.read_text())
@@ -230,6 +305,9 @@ def main(argv: list[str] | None = None) -> int:
     plot_seed_distribution(report, args.output_dir / f"{args.prefix}_seed_distribution.png")
     plot_paired_intervals(report, args.output_dir / f"{args.prefix}_paired_ci.png")
     plot_power_floor(report, args.output_dir / f"{args.prefix}_power.png")
+    if args.power_report is not None:
+        power = json.loads(args.power_report.read_text())
+        plot_validation_power(power, args.output_dir / f"{args.prefix}_validation_power.png")
     return 0
 
 

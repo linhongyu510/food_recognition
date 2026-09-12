@@ -317,7 +317,7 @@ dependency**. Where SciPy is installed the test suite cross-checks against it an
 agrees to ~1e-13 (`scipy.stats.ttest_1samp`, `scipy.stats.t.sf`,
 `scipy.stats.binomtest`).
 
-Test count: **217 -> 341** (+124). `ruff check src tests scripts app.py` clean
+Test count: **217 -> 390** (+173). `ruff check src tests scripts app.py` clean
 with no `--select` narrowing; full `pytest -q` green.
 
 Three defects were found by these tests and fixed, each with a regression test
@@ -451,3 +451,8 @@ either `significant` or `not_significant`. Add the new run directories to
 - `docs/benchmarks/food11_power.png` — the exact test's p-value floor against
   seed count, marking where this study sits (n=3, floor 0.25) and where alpha
   becomes reachable (n=6).
+- `docs/benchmarks/food11_validation_power.png` — the measured sign-flip rate and
+  measurement granularity against validation subset size (§3.4), i.e. what
+  enlarging the labelled set actually buys. Written by passing
+  `--power-report docs/benchmarks/food101_validation_power.json` to
+  `scripts/plot_significance.py`.
