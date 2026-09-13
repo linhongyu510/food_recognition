@@ -9,7 +9,7 @@ evaluation and inference.
 ![PyTorch](https://img.shields.io/badge/pytorch-%E2%89%A52.4-ee4c2c)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status.** The pipeline, CLI and 422-test suite are verified and run in CI on
+> **Status.** The pipeline, CLI and 423-test suite are verified and run in CI on
 > every push. Food-11 and Food-101 accuracy are both measured and recorded with
 > full provenance in [Benchmarks](#benchmarks).
 
@@ -598,6 +598,11 @@ the identical config, changing only `--seed`:
 | `b0_cbam` @ 300px | 95.15% | 95.30% | 94.55% | **95.00%** | 0.40 | 0.76 |
 | `b0_cbam` @ 380px | 94.85% | 94.70% | 95.00% | **94.85%** | 0.15 | 0.30 |
 
+> This table is the frozen three-seed record. `b3_cbam`@380 and `b0_cbam`@380 were
+> later extended to six seeds, which widened both spreads to 0.61 and moved their
+> means to 95.71% and 94.72% — three seeds understates run-to-run variability. The
+> six-seed figures and the formal tests are below.
+
 Reproduce with `scripts/aggregate_seeds.py`; the report is committed as
 [`docs/benchmarks/food11_seed_variance.json`](docs/benchmarks/food11_seed_variance.json).
 
@@ -640,24 +645,26 @@ aimed at *far* below native, since B4 at 224px does lose ground, but the specifi
 claim "every backbone has room above its native resolution" is only demonstrated
 for B0.
 
-**There is no demonstrated best cell.** The top three — B3@380 (95.56%), B4@380
-(95.45%), B0@300 (95.00%) — are separated by less than the seed spread and must
-be treated as a three-way tie on accuracy. The earlier claim that B4 "is never
-the best choice at any resolution" is not supported: its three-seed mean is
-second, statistically indistinguishable from first, and its single best run
-(95.76%) is the highest number anywhere in this project.
+**There is no demonstrated best cell.** The top three — B3@380, B4@380 and
+B0@300 — are separated by less than the seed spread and must be treated as a
+three-way tie on accuracy; the formal tests below confirm that `b3`@380 vs
+`b4`@380 is not separable. The earlier claim that B4 "is never the best choice at
+any resolution" is not supported: its mean is second, statistically
+indistinguishable from first, and its single best run (95.76%) was the highest
+number in the project until `b3`@380 seed 4 reached 96.06%.
 
 Cost, unlike accuracy, is measured without noise, so it is what actually
 separates them: B0@300 reaches the tied group in **19.0 min**, B3@380 in 51.5,
 B4@380 in 77.3. The practical reading is now about compute rather than ranking —
 **B0 + CBAM at 300px** gets you into the top group 4.1x faster than B4@380, and
-**B3 + CBAM at 380px** has the steadiest results (SD 0.09, the tightest of the
-four re-run cells) if reproducibility matters more than wall clock.
+**B3 + CBAM at 380px** is the one cell with a statistically supported advantage
+over another (see below), if accuracy matters more than wall clock.
 
 Remaining caveats: the five cells that were *not* re-run are still single-seed,
 so their positions carry an unquantified ±0.4-ish uncertainty by analogy. Three
-seeds is enough to expose a false ordering, as it did here, but too few for a
-confidence interval worth quoting. The 3,080-image training set is small enough
+seeds is enough to expose a false ordering, as it did here, but too few to decide
+one — the exact test cannot reject at n=3 at any effect size, which is why two
+cells were taken to six. The 3,080-image training set is small enough
 that the larger backbones are plausibly data-limited rather than
 capacity-limited. All nine grid checkpoints were re-scored through
 `food-recognition-eval` and reproduced their figures to six decimal places across
@@ -680,39 +687,44 @@ comparisons recorded in
 Pairing unit is one seed; the bootstrap resamples seed-level differences, 10,000
 times, at alpha=0.05 two-sided, uncorrected for multiplicity.
 
+`b0_380` and `b3_380` were extended to **6 seeds**, because three cannot decide
+anything: the two-sided exact test's p-value floor is `2/2^n`, which is 0.25 at
+n=3 and unreachable at any effect size. The other two cells remain at 3.
+
+| Pair | n | diff | bootstrap 95% CI | p (t) | p (exact) | dz | Verdict |
+|---|---:|---:|---|---:|---:|---:|---|
+| `b3`@380 vs `b0`@380 | **6** | +0.985 | [+0.707, +1.288] | **0.0019** | **0.0312** | +2.44 | **significant** |
+| `b4`@380 vs `b0`@380 | 3 | +0.606 | [+0.152, +0.909] | 0.1201 | 0.2500 | +1.51 | not significant |
+| `b3`@380 vs `b0`@300 | 3 | +0.556 | [+0.303, +1.061] | 0.1588 | 0.2500 | +1.27 | not significant |
+| `b4`@380 vs `b0`@300 | 3 | +0.455 | [-0.152, +1.212] | 0.3745 | 0.5000 | +0.65 | not significant |
+| `b0`@300 vs `b0`@380 | 3 | +0.152 | [-0.455, +0.606] | 0.6784 | 0.7500 | +0.28 | not significant |
+| `b3`@380 vs `b4`@380 | 3 | +0.101 | [-0.152, +0.455] | 0.6349 | 1.0000 | +0.32 | not significant |
+
 The result is **not** uniformly negative, and the eyeball verdict was too coarse
 in one place:
 
-| Pair | diff | bootstrap 95% CI | p (t) | p (exact) | dz | Verdict |
-|---|---:|---|---:|---:|---:|---|
-| `b3`@380 vs `b0`@380 | +0.707 | [+0.606, +0.909] | **0.0198** | 0.250 | +4.04 | significant (parametric only) |
-| `b4`@380 vs `b0`@380 | +0.606 | [+0.152, +0.909] | 0.1201 | 0.250 | +1.51 | not significant |
-| `b3`@380 vs `b0`@300 | +0.556 | [+0.303, +1.061] | 0.1588 | 0.250 | +1.27 | not significant |
-| `b4`@380 vs `b0`@300 | +0.455 | [-0.152, +1.212] | 0.3745 | 0.500 | +0.65 | not significant |
-| `b0`@300 vs `b0`@380 | +0.152 | [-0.455, +0.606] | 0.6784 | 0.750 | +0.28 | not significant |
-| `b3`@380 vs `b4`@380 | +0.101 | [-0.152, +0.455] | 0.6349 | 1.000 | +0.32 | not significant |
+1. **`b3`@380 over `b0`@380 is real.** +0.985 pts at 6 seeds, every seed agreeing
+   in sign, p(t)=0.0019, exact p=0.0312, CI excluding zero. It also survives Holm
+   correction across the six pairs. This is the one ranking claim in the grid the
+   data supports — it should not be lumped in with the rest.
+2. **The other five remain undecidable**, including `b3`@380 vs `b4`@380 (+0.101
+   pts = 0.7 images), so the nominal top-two ordering is still unsupported.
+3. **Epoch selection is a real confound.** All accuracies are best-of-30 (verified
+   uniform across all 18 runs), but the best epoch ranges from 12 to 30 and best
+   exceeds last-epoch accuracy by **+0.463 pts on average** — larger than four of
+   the six gaps compared. Under a last-epoch rule, four of six pairs change
+   verdict or sign and `b3`@380 vs `b4`@380 **reverses** (+0.101 → −0.404). The
+   one positive result does survive the switch (+0.808 pts, p=0.0406), which is
+   why it is the only finding stated. See
+   [`food11_epoch_criterion.json`](docs/benchmarks/food11_epoch_criterion.json).
 
-Three things follow, and the third is the important one:
+Extending two cells from 3 to 6 seeds cost 5.1 h and resolved one pair out of six.
+Doing the same for `b4`@380 and `b0`@300 would cost 6.4 h and is the cheapest
+remaining step that could decide the top-two comparison.
 
-1. **`b3`@380 over `b0`@380 is the one gap with real support** — all three seeds
-   agree in sign and magnitude (+0.606, +0.909, +0.606). It should not be lumped
-   in with the rest.
-2. **Three seeds cannot confirm it.** The two-sided exact test's p-value floor is
-   `2/2³ = 0.25`, so it cannot reject at any effect size; six paired seeds is the
-   minimum that could. Hence "parametric only", not "significant".
-3. **It does not survive the epoch-selection check.** All reported accuracies are
-   best-of-30 (verified uniform across all 12 runs), but the best epoch varies
-   from 13 to 30 and best exceeds last-epoch accuracy by **+0.492 points on
-   average** — larger than four of the six gaps being compared. Under a
-   last-epoch rule, four of six pairs change verdict or sign, and `b3`@380 vs
-   `b4`@380 **reverses** (+0.101 → −0.404). See
-   [`docs/benchmarks/food11_epoch_criterion.json`](docs/benchmarks/food11_epoch_criterion.json).
-
-So the three-way tie at the top stands, and the one apparently significant result
-is provisional rather than established. Separately, subsampling a real
-25,250-image validation set shows what a 660-image split costs: a difference that
-genuinely exists is detected 4.5% of the time and measured with the **wrong sign
-38.8%** of the time
+Separately, subsampling a real 25,250-image validation set shows what a 660-image
+split costs: a difference that genuinely exists is detected 4.5% of the time and
+measured with the **wrong sign 38.8%** of the time
 ([`food101_validation_power.json`](docs/benchmarks/food101_validation_power.json)).
 
 ### Food-101
@@ -910,7 +922,7 @@ src/food_recognition/     # the package
 
 configs/                  # YAML configs
 scripts/                  # sample data, dataset prep, HF publishing, plots, significance
-tests/                    # 422 tests
+tests/                    # 423 tests
 docs/                     # thesis notes, reference PDF
 experiments/              # object detection example
 ├── legacy/               # original single-file experiment scripts
@@ -926,7 +938,7 @@ linting, and still contain hard-coded `cuda:0` device assignments.
 ```bash
 pip install -e ".[dev]"
 
-pytest -q                                    # 422 tests
+pytest -q                                    # 423 tests
 pytest -q --cov=food_recognition             # with coverage
 ruff check src tests scripts                 # lint
 ```

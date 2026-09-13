@@ -1,17 +1,17 @@
 {
   "best_epoch_range": [
-    13,
+    12,
     30
   ],
   "criterion_note": "every reported accuracy is the maximum validation accuracy over the schedule ('best'); 'last' is the final epoch, which involves no selection. Both rules are applied uniformly to all runs.",
   "pairs": [
     {
-      "best_diff_points": 0.7070707070707078,
-      "best_p": 0.01980394118039193,
-      "best_verdict": "significant_parametric_only",
-      "last_diff_points": 0.6565656565656515,
-      "last_p": 0.36338726106329533,
-      "last_verdict": "not_significant",
+      "best_diff_points": 0.9848484848484829,
+      "best_p": 0.0018805193625522475,
+      "best_verdict": "significant",
+      "last_diff_points": 0.8080808080808041,
+      "last_p": 0.04059965782588891,
+      "last_verdict": "significant_parametric_only",
       "pair": "b3_380 vs b0_380",
       "sign_flips": false,
       "verdict_changes": true
@@ -117,6 +117,27 @@
         "last": 0.9424242424242424,
         "n_epochs": 30,
         "selection_gain": 0.007575757575757569
+      },
+      "3": {
+        "best": 0.9484848484848485,
+        "best_epoch": 20,
+        "last": 0.946969696969697,
+        "n_epochs": 30,
+        "selection_gain": 0.0015151515151514694
+      },
+      "4": {
+        "best": 0.943939393939394,
+        "best_epoch": 30,
+        "last": 0.943939393939394,
+        "n_epochs": 30,
+        "selection_gain": 0.0
+      },
+      "5": {
+        "best": 0.9454545454545454,
+        "best_epoch": 29,
+        "last": 0.9393939393939394,
+        "n_epochs": 30,
+        "selection_gain": 0.006060606060605989
       }
     },
     "b3_380": {
@@ -140,6 +161,27 @@
         "last": 0.956060606060606,
         "n_epochs": 30,
         "selection_gain": 0.0
+      },
+      "3": {
+        "best": 0.9575757575757575,
+        "best_epoch": 25,
+        "last": 0.9515151515151515,
+        "n_epochs": 30,
+        "selection_gain": 0.006060606060605989
+      },
+      "4": {
+        "best": 0.9606060606060606,
+        "best_epoch": 26,
+        "last": 0.9590909090909091,
+        "n_epochs": 30,
+        "selection_gain": 0.0015151515151514694
+      },
+      "5": {
+        "best": 0.9575757575757575,
+        "best_epoch": 12,
+        "last": 0.9484848484848485,
+        "n_epochs": 30,
+        "selection_gain": 0.009090909090909038
       }
     },
     "b4_380": {
@@ -168,7 +210,7 @@
   },
   "selection_gain_points": {
     "max": 1.3636363636363669,
-    "mean": 0.49242424242424143,
+    "mean": 0.4629629629629607,
     "min": 0.0
   },
   "unstable_pairs": [

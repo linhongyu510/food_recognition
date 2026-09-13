@@ -66,13 +66,29 @@ def audit(doc_text: str, bench: Path = BENCH) -> Auditor:
     epoch = json.loads((bench / "food11_epoch_criterion.json").read_text())
 
     # --- per-cell seed statistics -----------------------------------------
-    for cell, entry in variance.items():
+    # Read from the significance report, not food11_seed_variance.json: the
+    # latter is the frozen 3-seed record, while the document's table reflects
+    # whatever seed count each cell actually has. Checking the doc against the
+    # frozen file would fail as soon as a cell is extended, which is a stale
+    # expectation rather than a real inconsistency.
+    cells = {k: v for k, v in significance.items() if not k.startswith("_")}
+    for cell, entry in cells.items():
         a.check(f"{cell} mean", f"{entry['mean'] * 100:.2f}%")
         a.check(f"{cell} spread", f"{entry['spread'] * 100:.2f}")
         a.check(
             f"{cell} per-seed",
             " / ".join(f"{v * 100:.2f}" for v in entry["per_seed"]),
         )
+
+    # The frozen 3-seed record must still agree with the report on the cells
+    # that were never extended, otherwise one of the two files has drifted.
+    for cell, entry in variance.items():
+        if cell in cells and cells[cell]["n"] == entry["n"]:
+            a.check_true(
+                f"{cell} agrees with the frozen 3-seed record",
+                abs(cells[cell]["mean"] - entry["mean"]) < 1e-12,
+                f"report {cells[cell]['mean']} vs variance {entry['mean']}",
+            )
 
     # --- pairwise comparisons ---------------------------------------------
     comparisons = significance["_significance"]["comparisons"]
@@ -90,22 +106,47 @@ def audit(doc_text: str, bench: Path = BENCH) -> Auditor:
         p_value = float(c["t_test"]["p_value"])
         a.check(f"{pair} p(t)", f"{p_value:.4f}")
 
-    # The one positive result must be labelled as parametric-only, and the
-    # document must not upgrade it to a plain "significant".
+    # The document must describe the positive result exactly as strongly as the
+    # JSON does - no weaker, no stronger. The expected wording is derived from
+    # the verdict rather than hardcoded, because extending a pair's seed count
+    # can legitimately promote significant_parametric_only to significant.
     positive = [c for c in comparisons if c["verdict"].startswith("significant")]
     a.check_true(
         "exactly one positive verdict", len(positive) == 1, f"got {len(positive)}"
     )
     if positive:
+        verdict = positive[0]["verdict"]
+        power_limited = positive[0]["power_limited"]
         a.check_true(
-            "positive verdict is parametric-only",
-            positive[0]["verdict"] == "significant_parametric_only",
-            positive[0]["verdict"],
+            "positive verdict is one of the two significant kinds",
+            verdict in {"significant", "significant_parametric_only"},
+            verdict,
         )
+        # power_limited must agree with the verdict, or one of them is stale.
         a.check_true(
-            "positive verdict flagged power-limited", positive[0]["power_limited"] is True
+            "power_limited agrees with verdict",
+            power_limited is (verdict == "significant_parametric_only"),
+            f"verdict={verdict} power_limited={power_limited}",
         )
-        a.check("parametric-only wording", "parametric only")
+        if verdict == "significant_parametric_only":
+            # Must not be upgraded in prose.
+            a.check("parametric-only wording", "parametric only")
+            a.check_true(
+                "parametric-only result not called plainly significant",
+                "**significant**" not in a.text,
+                "prose asserts plain significance for a parametric-only result",
+            )
+        else:
+            # Plain significant: the exact test must actually have cleared alpha,
+            # and the prose must say so rather than hedging it away.
+            exact_p = float(positive[0]["permutation"]["p_value"])
+            alpha = float(positive[0]["alpha"])
+            a.check_true(
+                "exact test really cleared alpha",
+                exact_p <= alpha,
+                f"exact p={exact_p} vs alpha={alpha}",
+            )
+            a.check(f"exact p for {positive[0]['cell_a']}", f"{exact_p:.4f}")
 
     # --- measurement resolution -------------------------------------------
     res = significance["_significance"]["measurement_resolution"]

@@ -6,55 +6,58 @@
         "bootstrap": {
           "alpha": 0.05,
           "excludes_zero": true,
-          "high": 0.009090909090909038,
-          "low": 0.0060606060606061,
-          "mean": 0.007070707070707079,
-          "n_observations": 3,
+          "high": 0.012878787878787842,
+          "low": 0.007070707070707079,
+          "mean": 0.009848484848484829,
+          "n_observations": 6,
           "n_resamples": 10000,
           "resample_unit": "seed",
           "seed": 20260913
         },
         "cell_a": "b3_380",
         "cell_b": "b0_380",
-        "effect_size_dz": 4.041451884327507,
-        "mean_a": 0.9555555555555556,
-        "mean_b": 0.9484848484848486,
-        "mean_diff": 0.007070707070707079,
-        "notes": [
-          "exact sign-flip test on 3 seeds cannot go below p=0.250, so it cannot confirm anything at alpha=0.05; 6 paired seeds is the minimum that can",
-          "the t-test rejects, but it rests on a normality assumption that 3 points cannot support; treat as provisional"
-        ],
+        "effect_size_dz": 2.4394065313826205,
+        "mean_a": 0.9570707070707071,
+        "mean_b": 0.9472222222222223,
+        "mean_diff": 0.009848484848484829,
+        "notes": [],
         "per_seed_diff": [
           0.00606061,
           0.00909091,
-          0.00606061
+          0.00606061,
+          0.00909091,
+          0.01666667,
+          0.01212121
         ],
         "permutation": {
           "exact": true,
-          "min_attainable_p": 0.25,
-          "n": 3,
-          "n_patterns": 8,
-          "observed_abs_mean_diff": 0.007070707070707079,
-          "p_value": 0.25
+          "min_attainable_p": 0.03125,
+          "n": 6,
+          "n_patterns": 64,
+          "observed_abs_mean_diff": 0.009848484848484829,
+          "p_value": 0.03125
         },
-        "power_limited": true,
+        "power_limited": false,
         "seeds": [
           0,
           1,
-          2
+          2,
+          3,
+          4,
+          5
         ],
         "t_test": {
           "alpha": 0.05,
-          "df": 2,
-          "mean_diff": 0.007070707070707079,
-          "n": 3,
-          "p_value": 0.01980394118039193,
-          "sd_diff": 0.0017495462702715404,
-          "t_ci_high": 0.011416820939140742,
-          "t_ci_low": 0.002724593202273416,
-          "t_stat": 7.0000000000002185
+          "df": 5,
+          "mean_diff": 0.009848484848484829,
+          "n": 6,
+          "p_value": 0.0018805193625522475,
+          "sd_diff": 0.004037246240749732,
+          "t_ci_high": 0.014085314940563677,
+          "t_ci_low": 0.005611654756405979,
+          "t_stat": 5.975301277100019
         },
-        "verdict": "significant_parametric_only"
+        "verdict": "significant"
       },
       {
         "alpha": 0.05,
@@ -347,7 +350,10 @@
       "seeds_included": [
         0,
         1,
-        2
+        2,
+        3,
+        4,
+        5
       ],
       "tails": 2,
       "tests": [
@@ -378,39 +384,51 @@
   },
   "b0_380": {
     "max": 0.95,
-    "mean": 0.9484848484848486,
-    "min": 0.946969696969697,
-    "n": 3,
+    "mean": 0.9472222222222223,
+    "min": 0.943939393939394,
+    "n": 6,
     "per_seed": [
       0.948485,
       0.94697,
-      0.95
+      0.95,
+      0.948485,
+      0.943939,
+      0.945455
     ],
     "seeds": [
       0,
       1,
-      2
+      2,
+      3,
+      4,
+      5
     ],
-    "spread": 0.003030303030302939,
-    "std": 0.0015151515151514694
+    "spread": 0.006060606060605989,
+    "std": 0.0022302426430120654
   },
   "b3_380": {
-    "max": 0.956060606060606,
-    "mean": 0.9555555555555556,
+    "max": 0.9606060606060606,
+    "mean": 0.9570707070707071,
     "min": 0.9545454545454546,
-    "n": 3,
+    "n": 6,
     "per_seed": [
       0.954545,
       0.956061,
-      0.956061
+      0.956061,
+      0.957576,
+      0.960606,
+      0.957576
     ],
     "seeds": [
       0,
       1,
-      2
+      2,
+      3,
+      4,
+      5
     ],
-    "spread": 0.0015151515151514694,
-    "std": 0.0008747731351357702
+    "spread": 0.006060606060605989,
+    "std": 0.0020700910638301972
   },
   "b4_380": {
     "max": 0.9575757575757575,

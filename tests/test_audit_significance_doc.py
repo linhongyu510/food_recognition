@@ -106,12 +106,50 @@ def test_audit_requires_the_compute_limited_section() -> None:
 
 
 @pytest.mark.skipif(not DOC.is_file(), reason="significance.md not present")
-def test_audit_blocks_upgrading_the_parametric_only_verdict() -> None:
-    # The one positive result is parametric-only; dropping that qualifier would
-    # overstate it, so the audit must require the wording to stay.
-    text = DOC.read_text().replace("parametric only", "definitive")
-    result = auditor.audit(text, BENCH)
-    assert any("parametric-only wording" in f for f in result.failures)
+def test_audit_requires_prose_strength_to_match_the_verdict() -> None:
+    """The document must claim exactly what the JSON supports.
+
+    Which direction counts as overstating depends on the verdict, which changes
+    legitimately when a pair's seed count grows, so the check is derived from
+    the JSON rather than pinned to one verdict. Originally this test asserted
+    the parametric-only branch only, and it broke - correctly - when the pair
+    was extended to 6 seeds and became plainly significant.
+    """
+    sig = json.loads((BENCH / "food11_seed_significance.json").read_text())
+    positive = [
+        c
+        for c in sig["_significance"]["comparisons"]
+        if c["verdict"].startswith("significant")
+    ]
+    assert len(positive) == 1
+    verdict = positive[0]["verdict"]
+
+    if verdict == "significant_parametric_only":
+        # Dropping the qualifier would overstate the result.
+        text = DOC.read_text().replace("parametric only", "definitive")
+        result = auditor.audit(text, BENCH)
+        assert any("parametric-only wording" in f for f in result.failures)
+    else:
+        # A plain-significant verdict must be backed by the exact test, and the
+        # audit must notice if the reported exact p-value is wrong.
+        exact_p = positive[0]["permutation"]["p_value"]
+        assert exact_p <= positive[0]["alpha"]
+        text = DOC.read_text().replace(f"{exact_p:.4f}", "0.9999")
+        result = auditor.audit(text, BENCH)
+        assert any("exact p" in f for f in result.failures)
+
+
+@pytest.mark.skipif(not DOC.is_file(), reason="significance.md not present")
+def test_audit_rejects_a_verdict_inconsistent_with_power_limited() -> None:
+    """A stale power_limited flag beside a promoted verdict must be caught."""
+    sig = json.loads((BENCH / "food11_seed_significance.json").read_text())
+    for c in sig["_significance"]["comparisons"]:
+        if c["verdict"].startswith("significant"):
+            expected = c["verdict"] == "significant_parametric_only"
+            assert c["power_limited"] is expected, (
+                f"{c['cell_a']} vs {c['cell_b']}: verdict={c['verdict']} "
+                f"power_limited={c['power_limited']}"
+            )
 
 
 def test_main_returns_2_for_a_missing_document(tmp_path: Path) -> None:
