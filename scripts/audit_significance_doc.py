@@ -106,47 +106,64 @@ def audit(doc_text: str, bench: Path = BENCH) -> Auditor:
         p_value = float(c["t_test"]["p_value"])
         a.check(f"{pair} p(t)", f"{p_value:.4f}")
 
-    # The document must describe the positive result exactly as strongly as the
-    # JSON does - no weaker, no stronger. The expected wording is derived from
-    # the verdict rather than hardcoded, because extending a pair's seed count
-    # can legitimately promote significant_parametric_only to significant.
+    # The document must describe each positive result exactly as strongly as the
+    # JSON does - no weaker, no stronger. Everything here is derived from the
+    # JSON rather than hardcoded, because extending seed counts legitimately
+    # changes both how many pairs are positive and how strong each one is.
     positive = [c for c in comparisons if c["verdict"].startswith("significant")]
     a.check_true(
-        "exactly one positive verdict", len(positive) == 1, f"got {len(positive)}"
+        "at least one verdict is stated",
+        len(comparisons) > 0,
+        "no comparisons in the report",
     )
-    if positive:
-        verdict = positive[0]["verdict"]
-        power_limited = positive[0]["power_limited"]
+    for c in positive:
+        pair = f"{c['cell_a']} vs {c['cell_b']}"
+        verdict = c["verdict"]
         a.check_true(
-            "positive verdict is one of the two significant kinds",
+            f"{pair} verdict is one of the two significant kinds",
             verdict in {"significant", "significant_parametric_only"},
             verdict,
         )
-        # power_limited must agree with the verdict, or one of them is stale.
+        exact_p = float(c["permutation"]["p_value"])
+        floor = float(c["permutation"]["min_attainable_p"])
+        alpha = float(c["alpha"])
+
+        # power_limited means the exact test *cannot* reach alpha at this n.
+        # It is a property of the design, not of the observed effect, so it
+        # must equal "the floor itself misses alpha". A parametric-only verdict
+        # at n=3 is power-limited; the same verdict at n=6 is not, because there
+        # the exact test could have rejected and simply did not. Conflating the
+        # two would let a weak result inherit an excuse it has not earned.
         a.check_true(
-            "power_limited agrees with verdict",
-            power_limited is (verdict == "significant_parametric_only"),
-            f"verdict={verdict} power_limited={power_limited}",
+            f"{pair} power_limited matches the floor",
+            c["power_limited"] is (floor > alpha),
+            f"power_limited={c['power_limited']} floor={floor} alpha={alpha}",
         )
+
         if verdict == "significant_parametric_only":
-            # Must not be upgraded in prose.
-            a.check("parametric-only wording", "parametric only")
             a.check_true(
-                "parametric-only result not called plainly significant",
-                "**significant**" not in a.text,
-                "prose asserts plain significance for a parametric-only result",
+                f"{pair} exact test did not clear alpha",
+                exact_p > alpha,
+                f"exact p={exact_p} <= alpha={alpha} but verdict is parametric-only",
             )
+            a.check("parametric-only wording", "parametric only")
         else:
-            # Plain significant: the exact test must actually have cleared alpha,
-            # and the prose must say so rather than hedging it away.
-            exact_p = float(positive[0]["permutation"]["p_value"])
-            alpha = float(positive[0]["alpha"])
             a.check_true(
-                "exact test really cleared alpha",
+                f"{pair} exact test really cleared alpha",
                 exact_p <= alpha,
                 f"exact p={exact_p} vs alpha={alpha}",
             )
-            a.check(f"exact p for {positive[0]['cell_a']}", f"{exact_p:.4f}")
+            a.check(f"{pair} exact p", f"{exact_p:.4f}")
+
+        # A rejection sitting exactly on the floor must say so: it means every
+        # paired difference shares a sign, the most extreme arrangement these
+        # seeds can produce, so the margin cannot shrink without more seeds.
+        if c["permutation"].get("at_floor") and exact_p <= alpha:
+            a.check_true(
+                f"{pair} floor-hugging p is flagged in prose",
+                "floor" in a.text.lower(),
+                "an at-floor rejection is reported without mentioning the floor",
+            )
 
     # --- measurement resolution -------------------------------------------
     res = significance["_significance"]["measurement_resolution"]

@@ -373,13 +373,23 @@ def paired_permutation_test(
     # ``>=`` with a tolerance: the observed pattern must count itself even
     # after floating-point reordering inside the matrix product.
     hits = int(np.count_nonzero(stats >= observed - 1e-12))
+    p_value = hits / total
+    min_attainable = 2.0 / total if exact else 1.0 / total
     return {
         "n": n,
         "observed_abs_mean_diff": observed,
-        "p_value": hits / total,
+        "p_value": p_value,
         "n_patterns": total,
         "exact": exact,
-        "min_attainable_p": 2.0 / total if exact else 1.0 / total,
+        "min_attainable_p": min_attainable,
+        # A p-value sitting exactly on the floor needs reporting differently
+        # from one that landed there: it means every paired difference shares a
+        # sign, which is the most extreme arrangement n pairs can produce and,
+        # at small n, also the *only* one that reaches alpha. Such a result is
+        # significant but not comfortably so, and the margin cannot shrink
+        # further without more seeds. Flagged here rather than left to prose so
+        # the caveat cannot be dropped by accident.
+        "at_floor": bool(exact and abs(p_value - min_attainable) < 1e-12),
     }
 
 

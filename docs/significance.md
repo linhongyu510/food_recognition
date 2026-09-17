@@ -208,16 +208,17 @@ Recorded machine-readably in the `protocol` block of every report JSON.
 - **Bootstrap:** percentile, **10,000** resamples, RNG seed 20260913.
 - **alpha:** 0.05, **two-sided**.
 - **Effect size:** Cohen's *dz* = mean difference / SD of differences.
-- **Multiplicity:** **none**. All six p-values are per-pair and uncorrected. With
-  a Holm correction across six pairs, the smallest (0.0019) would need to clear
-  0.0083 — it does, so the one positive result survives correction; no other pair
-  comes close.
-- **Epoch selection:** best-of-30, applied uniformly to all 18 runs (§4.4).
+- **Multiplicity:** **none**. All six p-values are per-pair and uncorrected. Under
+  Holm at alpha=0.05 the two smallest (0.0019 and 0.0060) clear their thresholds
+  and the other two positive results (0.0148, 0.0277) do not; §4.3 caveat 2 gives
+  the detail. Reported uncorrected because the six pairs answer six separate
+  questions, with the correction stated rather than silently applied.
+- **Epoch selection:** best-of-30, applied uniformly to all 24 runs (§4.4).
 
-Source of truth: `docs/benchmarks/food11_seed_significance.json` — `b0_380` and
-`b3_380` at 6 seeds, `b4_380` and `b0_300` at 3 (§6.1), all 30-epoch runs on the
-660-image split. `docs/benchmarks/food11_seed_variance.json` is the frozen 3-seed
-record kept for provenance.
+Source of truth: `docs/benchmarks/food11_seed_significance.json` — all four cells
+at 6 seeds, all 30-epoch runs on the 660-image split.
+`docs/benchmarks/food11_seed_variance.json` is the frozen 3-seed record kept for
+provenance; where the two disagree, the 6-seed report is current.
 
 ```bash
 python scripts/aggregate_seeds.py ../seeds \
@@ -228,73 +229,79 @@ python scripts/aggregate_seeds.py ../seeds \
 
 ### 4.2 Per-cell spread
 
-`b0_380` and `b3_380` were extended to **6 seeds** after the first pass, because
-they carry the only pair that showed a real effect and n=3 could not corroborate
-it (§4.3). The other two cells remain at 3.
+All four cells are now at **6 seeds**. Three seeds cannot decide anything: the
+two-sided exact sign-flip test's p-value floor is `2/2^n`, which is 0.25 at n=3
+and unreachable at any effect size.
 
 | Cell | n | Mean | SD | Spread | Per-seed |
 | --- | --- | --- | --- | --- | --- |
-| `b3_380` | **6** | 95.71% | 0.21 | 0.61 | 95.45 / 95.61 / 95.61 / 95.76 / 96.06 / 95.76 |
-| `b4_380` | 3 | 95.45% | 0.40 | 0.76 | 95.00 / 95.61 / 95.76 |
-| `b0_300` | 3 | 95.00% | 0.40 | 0.76 | 95.15 / 95.30 / 94.55 |
-| `b0_380` | **6** | 94.72% | 0.22 | 0.61 | 94.85 / 94.70 / 95.00 / 94.85 / 94.39 / 94.55 |
+| `b4_380` | 6 | 95.76% | 0.42 | 1.06 | 95.00 / 95.61 / 95.76 / 96.06 / 96.06 / 96.06 |
+| `b3_380` | 6 | 95.71% | 0.21 | 0.61 | 95.45 / 95.61 / 95.61 / 95.76 / 96.06 / 95.76 |
+| `b0_300` | 6 | 94.82% | 0.43 | 1.06 | 95.15 / 95.30 / 94.55 / 95.15 / 94.24 / 94.55 |
+| `b0_380` | 6 | 94.72% | 0.22 | 0.61 | 94.85 / 94.70 / 95.00 / 94.85 / 94.39 / 94.55 |
 
-Largest spread 0.76 pts = 5.0 images out of 660. Note both 6-seed cells widened
-their spread to 0.61 pts as seeds were added: 3 seeds understates run-to-run
-variability, which is a reason to distrust tight-looking SDs at n=3, not to
-prefer them.
+Largest spread 1.06 pts = 7.0 images out of 660. **Every cell's spread grew when
+seeds 3-5 were added** (b4_380 0.76 -> 1.06, b0_300 0.76 -> 1.06, and the two
+extended earlier went 0.15/0.30 -> 0.61). Three seeds systematically understates
+run-to-run variability, so a tight SD at n=3 is not evidence of stability.
+
+Note also that the two 380px cells swapped places: at n=3 `b3_380` led with
+95.56% against `b4_380`'s 95.45%; at n=6 `b4_380` leads with 95.76% against
+95.71%. §4.3 shows that reordering is not significant either way.
 
 ### 4.3 Pairwise results
 
-Pairs are formed only on seeds both cells share, so the extended pair is tested
-at n=6 and the rest at n=3. That asymmetry is stated per row rather than hidden.
-
 | Pair | n | diff (pts) | Bootstrap 95% CI | p (t) | p (exact) | dz | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `b3_380` vs `b0_380` | **6** | +0.985 | [+0.707, +1.288] | **0.0019** | **0.0312** | +2.44 | **significant** |
-| `b4_380` vs `b0_380` | 3 | +0.606 | [+0.152, +0.909] | 0.1201 | 0.2500 | +1.51 | not significant |
-| `b3_380` vs `b0_300` | 3 | +0.556 | [+0.303, +1.061] | 0.1588 | 0.2500 | +1.27 | not significant |
-| `b4_380` vs `b0_300` | 3 | +0.455 | [-0.152, +1.212] | 0.3745 | 0.5000 | +0.65 | not significant |
-| `b0_300` vs `b0_380` | 3 | +0.152 | [-0.455, +0.606] | 0.6784 | 0.7500 | +0.28 | not significant |
-| `b3_380` vs `b4_380` | 3 | +0.101 | [-0.152, +0.455] | 0.6349 | 1.0000 | +0.32 | not significant |
+| `b4_380` vs `b0_380` | 6 | +1.035 | [+0.631, +1.414] | **0.0060** | **0.0312** | +1.87 | **significant** |
+| `b3_380` vs `b0_380` | 6 | +0.985 | [+0.707, +1.288] | **0.0019** | **0.0312** | +2.44 | **significant** |
+| `b4_380` vs `b0_300` | 6 | +0.934 | [+0.379, +1.465] | **0.0277** | 0.0625 | +1.25 | significant, parametric only |
+| `b3_380` vs `b0_300` | 6 | +0.884 | [+0.480, +1.338] | **0.0148** | **0.0312** | +1.49 | **significant** |
+| `b0_300` vs `b0_380` | 6 | +0.101 | [-0.177, +0.379] | 0.5430 | 0.6250 | +0.27 | not significant |
+| `b4_380` vs `b3_380` | 6 | +0.051 | [-0.177, +0.227] | 0.6793 | 0.8750 | +0.18 | not significant |
 
-**The conclusion is not uniform, and must not be reported as if it were.**
+**What n=6 resolved.** Both 380px cells beat `b0_380`, and `b3_380` beats
+`b0_300`, on all three tests. A fourth pair (`b4_380` vs `b0_300`) rejects
+parametrically but not exactly. So resolution matters: the two 380px cells are
+genuinely ahead of the two B0 cells.
 
-- **One pair separates, and now does so on every test.** `b3_380` over `b0_380`,
-  **+0.985 pts** at n=6, p(t)=0.0019, **exact p=0.0312**, dz=+2.44, bootstrap CI
-  [+0.707, +1.288] excluding zero. This is the one ranking claim in the grid that
-  the data supports.
-- **Five pairs remain undecidable**, including the two nominally best cells
-  (`b3_380` vs `b4_380`, 0.101 pts = 0.7 images), whose CI comfortably spans zero.
-  The nominal top-two ordering is not supported.
+**What n=6 did not resolve, and this is the more important half.** The two
+comparisons *within* each resolution tier remain undecidable:
 
-**What the extra three seeds changed.** At n=3 this pair was
-`significant_parametric_only`: the t-test rejected at p=0.0198 but the exact
-sign-flip test could not, because its two-sided p-value floor is `2/2^n` = 0.25 at
-n=3 — unreachable at any effect size. `seeds_needed(0.05) = 6` predicted the fix,
-and running the six seeds confirmed it: the floor drops to 0.03125 and the exact
-test now clears alpha at exactly that value. The verdict is therefore plain
-`significant` with `power_limited: false`. Note the honest reading of "exactly the
-floor": with 6 seeds the exact test rejects only because **every** per-seed
-difference has the same sign, which is the strongest pattern 6 paired runs can
-show and also the only one that reaches alpha. It is significant, not
-comfortably so.
+- **`b4_380` vs `b3_380`: +0.051 pts, p=0.6793, CI [-0.177, +0.227].** This was
+  the nominal top-two comparison and the whole reason for the extension. It is
+  not merely unresolved — the sign **reversed** relative to n=3, where `b3_380`
+  led by +0.101. Six seeds each, and the two cells are still indistinguishable;
+  the CI is now tight enough (±0.2 pts) to say the true gap is *small*, not to
+  say which is larger.
+- **`b0_300` vs `b0_380`: +0.101 pts, p=0.5430**, CI spanning zero.
 
-Also note dz fell from +4.04 (n=3) to +2.44 (n=6). The n=3 figure was inflated by
-the small sample, exactly as expected; the n=6 estimate is the more trustworthy
-one, and still a large effect.
+So doubling the seed count bought four verdicts and confirmed that the top-two
+question has no answer at this scale. The three-way tie at the top of the grid is
+now a **two-way** tie between `b4_380` and `b3_380`, established rather than
+merely suspected.
 
-**Two caveats remain on this result:**
+**Three caveats on the positive results:**
 
-1. **Multiplicity.** p=0.0019 is uncorrected. Across 6 pairs, Holm at alpha=0.05
-   tests the smallest p against 0.05/6 = 0.0083; 0.0019 passes that, so this
-   particular result survives correction. The exact p=0.0312 would not.
-2. **Epoch selection weakens but no longer overturns it** (§4.4).
+1. **Three of the four rejections sit exactly on the exact test's floor**
+   (p=0.0312 = `2/2^6`). That is the smallest p-value 6 paired seeds can produce,
+   and it occurs precisely when every per-seed difference shares a sign. Such a
+   result *is* a rejection, but a maximally fragile one: a single seed
+   disagreeing would push p to 0.219 and the verdict to not-significant. It is
+   flagged in the report as `permutation.at_floor` so the caveat travels with the
+   number rather than depending on prose.
+2. **Multiplicity.** p-values are uncorrected. Holm across six pairs tests the
+   smallest against 0.05/6 = 0.0083: `b3_380` vs `b0_380` (0.0019) and `b4_380`
+   vs `b0_380` (0.0060) survive; `b3_380` vs `b0_300` (0.0148) and `b4_380` vs
+   `b0_300` (0.0277) do not. So two of the four positive results are robust to
+   correction and two are not.
+3. **Epoch selection changes three of the four verdicts** (§4.4), though it no
+   longer reverses any sign among them.
 
 ### 4.4 Epoch-selection sensitivity — a genuine confound
 
 Every accuracy above is the **best** validation accuracy over the 30-epoch
-schedule. Verified uniform: for all 18 runs, `metrics.json["accuracy"]` equals
+schedule. Verified uniform: for all 24 runs, `metrics.json["accuracy"]` equals
 `max(history.json val_acc)` exactly, and every run completed the full 30 epochs.
 So the rule is applied consistently and the pairing is internally valid.
 
@@ -303,37 +310,45 @@ an amount that depends on each run's curve noise. Measured with
 `scripts/check_epoch_criterion.py`:
 
 - Best epoch ranges from **12 to 30** across runs.
-- Best exceeds last-epoch accuracy by **+0.463 pts on average**, max **+1.364**.
+- Best exceeds last-epoch accuracy by **+0.492 pts on average**, max **+1.364**.
 
-**That average selection bonus is larger than four of the six pairwise gaps being
-compared.** Recomputing everything under the last-epoch rule:
+That average selection bonus still exceeds the two unresolved gaps entirely.
+Recomputing everything under the last-epoch rule:
 
 | Pair | best-epoch | last-epoch | Verdict change |
 | --- | --- | --- | --- |
-| `b3_380` vs `b0_380` | +0.985 | +0.808 | significant -> **significant (parametric only)**, p 0.0019 -> 0.0406 |
-| `b4_380` vs `b0_380` | +0.606 | +1.061 | not significant -> **significant (parametric)** |
-| `b3_380` vs `b0_300` | +0.556 | +0.657 | unchanged |
-| `b4_380` vs `b0_300` | +0.455 | +1.061 | unchanged |
-| `b0_300` vs `b0_380` | +0.152 | +0.000 | **sign lost** |
-| `b3_380` vs `b4_380` | +0.101 | **-0.404** | **sign flips** |
+| `b4_380` vs `b0_380` | +1.035 | +1.136 | unchanged (significant both ways) |
+| `b3_380` vs `b0_380` | +0.985 | +0.808 | significant -> **parametric only** |
+| `b4_380` vs `b0_300` | +0.934 | +1.313 | parametric only -> **significant** |
+| `b3_380` vs `b0_300` | +0.884 | +0.985 | significant -> **parametric only** |
+| `b0_300` vs `b0_380` | +0.101 | **-0.177** | **sign flips** (not significant either way) |
+| `b4_380` vs `b3_380` | +0.051 | +0.328 | unchanged (not significant either way) |
 
-Four of six pairs change verdict or sign. The top-two pair `b3_380` vs `b4_380`
-still **reverses**: b3 leads by 0.101 pts under best-epoch and trails by 0.404
-under last-epoch, so that ordering is an artifact of the epoch rule.
+**This is materially better than at n=3, and worth stating precisely.** With
+three seeds, four of six pairs changed verdict *or sign*, and the single positive
+result was destroyed by the switch. With six:
 
-**What survived and what did not.** At n=3 the single positive result was
-destroyed by this check. At n=6 it is not: the difference stays positive
-(+0.808 pts) and the t-test still rejects (p=0.0406), though it drops to
-parametric-only because the exact test at that magnitude no longer clears alpha.
-So `b3_380` > `b0_380` is now the one claim that holds under **both** epoch rules,
-which is why it is the only one stated as a finding.
+- **No sign flips among the four resolved pairs.** The only sign flip left is
+  `b0_300` vs `b0_380`, which is not significant under either rule — so the flip
+  changes nothing.
+- **One pair is stable in both verdict and sign**: `b4_380` vs `b0_380`,
+  significant either way. That is the single most robust claim in the grid.
+- **Three pairs still move between `significant` and `parametric only`.** The
+  direction is preserved in every case; what changes is whether the exact test
+  clears alpha. Since three of them sit on the floor (caveat 1), a shift of a
+  single seed's sign is enough to move them, so this instability is expected
+  rather than surprising.
+- **The top-two pair is not significant under either rule**, so no epoch choice
+  rescues it.
 
-**Conclusion.** With a 660-image validation split and best-of-30 selection, this
-grid supports exactly one ranking claim — `b3_380` over `b0_380` — and only after
-doubling that pair's seed count. Every other ordering, including the nominal
-top-two, is indistinguishable from noise or depends on an arbitrary analysis
-choice. Extending two cells to 6 seeds was enough to resolve one pair out of six;
-resolving the rest would need the same treatment applied more widely (§6).
+**Conclusion.** Six seeds per cell, a 660-image validation split and best-of-30
+selection support this much: **both 380px cells are genuinely better than
+`b0_380`**, with `b4_380` vs `b0_380` robust to the epoch rule and to Holm
+correction. They do **not** support any ordering *between* `b4_380` and `b3_380`,
+or between `b0_300` and `b0_380` — and the top-two sign reversed between n=3 and
+n=6, which is direct evidence that the earlier ranking was noise. Resolution is
+the real effect here; backbone size within a resolution tier is not resolvable at
+this validation-set size (§3.4 explains why 660 images is the binding limit).
 
 ---
 
@@ -346,7 +361,7 @@ dependency**. Where SciPy is installed the test suite cross-checks against it an
 agrees to ~1e-13 (`scipy.stats.ttest_1samp`, `scipy.stats.t.sf`,
 `scipy.stats.binomtest`).
 
-Test count: **217 -> 423** (+206). `ruff check src tests scripts app.py` clean
+Test count: **217 -> 436** (+219). `ruff check src tests scripts app.py` clean
 with no `--select` narrowing; full `pytest -q` green.
 
 Three defects were found by these tests and fixed, each with a regression test
@@ -378,27 +393,27 @@ Measured costs on this machine (from `seeds/seeds_master.log` and
 | Run | Measured cost |
 | --- | --- |
 | Food-11 `b0_cbam` @224, 30 ep | 10.7 min |
-| Food-11 `b0_cbam` @300/@380, 30 ep | ~18 / ~25 min |
-| Food-11 `b3_cbam` @380, 30 ep | 51.5 min |
-| Food-11 `b4_cbam` @380, 30 ep | 77.3 min |
+| Food-11 `b0_cbam` @300/@380, 30 ep | 17.7 / ~25 min |
+| Food-11 `b3_cbam` @380, 30 ep | 51.5 min (86.5 min measured over seeds 3-5) |
+| Food-11 `b4_cbam` @380, 30 ep | 72.4 min (mean of seeds 3-5) |
 | Food-101 `b0_cbam` @224, 30 ep | 254 min (4.2 h) |
 | Food-101 `b4_cbam` @224, 30 ep | 670.6 min (11.2 h) |
 
 Two MPS trainings run concurrently slow each other by ~2x, so all estimates
 assume serial execution.
 
-### 6.1 Six seeds for the remaining two Food-11 cells — not done
+### 6.1 Six seeds per cell — done
 
-`b0_380` and `b3_380` **were** extended to 6 seeds (completed; see §6.5), which
-is what lifted that pair's exact-test floor from 0.25 to 0.031 and produced the
-one assumption-free verdict in §4.3. `b4_380` and `b0_300` were **not**: they
-remain at 3 seeds, so all five pairs involving them are still subject to the 0.25
-floor and cannot be decided regardless of effect size.
+All four Food-11 cells are at 6 seeds; see §6.5 for the two extension sweeps and
+their measured costs. Nothing in §4 is now seed-limited at n=6, which is what
+made four of the six pairs decidable and confirmed the other two are not.
 
-Extending those two costs `3 x (51.5 + 77.3)` = **6.4 h** serial. This is the
-single cheapest remaining action that would change a conclusion: it would make
-`b3_380` vs `b4_380` — the nominal top-two comparison, currently undecidable —
-testable for the first time.
+Going further would mean **8 seeds** (`seeds_needed(0.01) = 8`), which would drop
+the exact floor from 0.031 to 0.0078 and let the three floor-hugging rejections in
+§4.3 clear alpha with room to spare instead of exactly at the limit. Cost for two
+more seeds on all four cells: `2 x (17.7 + 25 + 51.5 + 72.4)` = **5.6 h**. Not
+done. It would firm up existing verdicts rather than change any, so it ranks below
+§6.2.
 
 ### 6.2 A larger labelled Food-11 validation split
 
@@ -430,30 +445,49 @@ rule would additionally require last-epoch *checkpoints*; only `best.pt` and
 not run. Estimated cost: evaluation only, ~1.5 min per Food-11 run, ~18 min for
 all 12. Not done.
 
-### 6.5 The n=6 runs — completed and folded in
+### 6.5 The two n=6 extension sweeps — completed and folded in
 
-Seeds 3, 4 and 5 for `b0_380` and `b3_380` ran serially from 03:08 to 08:16 local
-time, **308 min (5.1 h)** wall clock against a 229 min estimate — the estimate was
-low by 34%, mostly because `b3_380` per-run cost ran above the 51.5 min figure
-taken from the earlier single run.
+**Sweep 1** — seeds 3-5 for `b0_380` and `b3_380`, the pair that at n=3 rejected
+parametrically but could not be corroborated by the exact test. Ran serially
+03:08 -> 08:16, **308 min (5.1 h)** against a 229 min estimate: **34% over**,
+mostly because `b3_380` averaged 86.5 min/run rather than the 51.5 min taken from
+its earlier single run.
 
-All six completed with `rc=0`, all six ran the full 30 epochs, and all six satisfy
-`metrics.json["accuracy"] == max(history val_acc)`, so they were folded into §4
-under the same selection rule as the original three. Per-run accuracies:
+**Sweep 2** — seeds 3-5 for `b4_380` and `b0_300`, the two cells still at n=3,
+which left all pairs involving them undecidable by construction. Ran serially
+02:07 -> 06:38, **270.7 min (4.5 h)** against a 255 min estimate: **6% over**.
+Per-run: `b0_300` 18.3 / 17.8 / 17.7 min, `b4_380` 73.3 / 72.3 / 71.4 min.
+
+> **Correction.** An earlier version of §6.1 priced sweep 2 at `3 x (51.5 + 77.3)`
+> = 6.4 h. The 51.5 figure is `b3_380`'s per-run cost, not `b0_300`'s (~18 min) —
+> the wrong cell was substituted. Re-deriving from the seed 1/2 logs of the cells
+> actually being extended gave 255 min, which the 270.7 min actual confirms. The
+> original 6.4 h estimate was 42% too high.
+
+All twelve runs across both sweeps completed with `rc=0`, ran the full 30 epochs,
+and satisfy `metrics.json["accuracy"] == max(history val_acc)`, so they were folded
+into §4 under the same selection rule as seeds 0-2. Sweep 2 per-run accuracies:
 
 | Run | Accuracy | Best epoch | Last epoch |
 | --- | --- | --- | --- |
-| `b0_380` seed 3 | 94.85% | 20 | 94.70% |
-| `b0_380` seed 4 | 94.39% | 30 | 94.39% |
-| `b0_380` seed 5 | 94.55% | 29 | 93.94% |
-| `b3_380` seed 3 | 95.76% | 25 | 95.15% |
-| `b3_380` seed 4 | 96.06% | 26 | 95.91% |
-| `b3_380` seed 5 | 95.76% | 12 | 94.85% |
+| `b0_300` seed 3 | 95.15% | 22 | 94.09% |
+| `b0_300` seed 4 | 94.24% | 17 | 93.64% |
+| `b0_300` seed 5 | 94.55% | 29 | 94.24% |
+| `b4_380` seed 3 | 96.06% | 12 | 95.15% |
+| `b4_380` seed 4 | 96.06% | 26 | 95.91% |
+| `b4_380` seed 5 | 96.06% | 26 | 95.61% |
 
-**This is the one part of §4 that moved from "compute-limited" to verified**, and
-it changed the headline: `b3_380` vs `b0_380` went from
-`significant_parametric_only` (n=3) to `significant` (n=6). Everything else in §6
-remains not done.
+**What the two sweeps bought, stated plainly.** Sweep 1 turned one
+`significant_parametric_only` verdict into `significant`. Sweep 2 was aimed at the
+nominal top-two comparison `b4_380` vs `b3_380` and **did not resolve it**: the
+gap is +0.051 pts with p=0.6793 and a CI of [-0.177, +0.227], and its sign
+reversed relative to n=3. That is a negative result for the stated goal, and it is
+the more informative outcome — it establishes that the top-two ordering is not
+determinable at this validation-set size rather than merely unproven. Sweep 2 did
+resolve three other pairs as a side effect (§4.3).
+
+Total compute across both sweeps: **578.7 min (9.6 h)** for twelve 30-epoch runs.
+
 
 ---
 
@@ -503,13 +537,9 @@ To extend a cell, train `<cell>_s<seed>` under the same config with only `--seed
 changed, add it to `docs/benchmarks/seed_runs_manifest.json`, widen the `--seeds`
 list, and re-run the first two commands plus the figures.
 
-When the §6.5 runs finish, re-run the first two commands with the seed list
-widened (e.g. `--seeds 0,1,2,3,4,5`) rather than dropped, so the report stays
-explicit about what went into it.
-The `b0_380` vs `b3_380` pair will then have 6 paired seeds and its exact-test
-floor drops to 0.031, at which point `significant_parametric_only` can become
-either `significant` or `not_significant`. Add the new run directories to
-`docs/benchmarks/seed_runs_manifest.json` so the epoch check covers them too.
+Keep the seed list explicit rather than dropping the flag when adding seeds: a
+report generated without it takes whatever run directories exist, which once
+produced a table whose cells had unequal n.
 
 ## 8. Figures
 
@@ -518,7 +548,7 @@ either `significant` or `not_significant`. Add the new run directories to
 - `docs/benchmarks/food11_paired_ci.png` — paired differences with bootstrap CIs,
   coloured by verdict; the zero line shows which pairs cannot be ordered.
 - `docs/benchmarks/food11_power.png` — the exact test's p-value floor against
-  seed count, marking where this study sits (n=3, floor 0.25) and where alpha
+  seed count, marking where this study sits (n=6, floor 0.031) and where alpha
   becomes reachable (n=6).
 - `docs/benchmarks/food11_validation_power.png` — the measured sign-flip rate and
   measurement granularity against validation subset size (§3.4), i.e. what
