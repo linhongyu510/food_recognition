@@ -727,3 +727,72 @@ def test_bootstrap_accuracy_diff_brackets_the_observed_gap() -> None:
 def test_bootstrap_accuracy_diff_rejects_misaligned_vectors() -> None:
     with pytest.raises(ValueError, match="align image-by-image"):
         bootstrap_accuracy_diff_ci([1, 0], [1, 0, 1])
+
+
+# ---------------------------------------------------------------------------
+# at_floor: a p-value sitting exactly on the exact test's minimum
+#
+# When every paired difference shares a sign, the exact sign-flip test returns
+# exactly 2/2**n. That is a rejection, but a maximally fragile one: no
+# arrangement of n pairs can do better, so the margin cannot be improved
+# without more seeds. Reporting it as an ordinary p-value overstates it.
+# ---------------------------------------------------------------------------
+def test_all_same_sign_lands_exactly_on_the_floor() -> None:
+    for n in (3, 4, 5, 6, 7, 8):
+        result = paired_permutation_test([1.0] * n)
+        assert result["p_value"] == pytest.approx(2.0 / 2**n)
+        assert result["min_attainable_p"] == pytest.approx(2.0 / 2**n)
+        assert result["at_floor"] is True
+
+
+def test_at_floor_is_false_when_a_sign_disagrees() -> None:
+    # One negative difference means a more extreme arrangement exists.
+    result = paired_permutation_test([1.0, 1.0, 1.0, 1.0, 1.0, -1.0])
+    assert result["at_floor"] is False
+    assert result["p_value"] > result["min_attainable_p"]
+
+
+def test_at_floor_holds_for_same_sign_unequal_magnitudes() -> None:
+    """Magnitudes need not be equal - only the signs must agree.
+
+    Written first as an at_floor==False case on the assumption that uneven
+    magnitudes would keep it off the floor. That was wrong: the all-positive
+    pattern still maximises |mean|, so it is still the most extreme of the 2**n
+    sign assignments and still returns exactly 2/2**n.
+    """
+    result = paired_permutation_test([0.1, 1.0, 1.0])
+    assert result["at_floor"] is True
+    assert result["p_value"] == pytest.approx(0.25)
+
+
+def test_at_floor_is_false_when_a_dissenting_sign_dominates() -> None:
+    # A large opposite-signed difference makes another assignment more extreme.
+    result = paired_permutation_test([3.0, -1.0, -1.0])
+    assert result["at_floor"] is False
+    assert result["p_value"] > result["min_attainable_p"]
+
+
+def test_six_same_sign_seeds_clear_alpha_but_only_just() -> None:
+    """The n=6 design: floor 0.03125 clears 0.05, with no room to spare."""
+    result = paired_permutation_test([0.5] * 6)
+    assert result["p_value"] == pytest.approx(0.03125)
+    assert result["p_value"] <= 0.05
+    assert result["at_floor"] is True
+    # Five seeds cannot clear alpha even when perfectly consistent.
+    assert paired_permutation_test([0.5] * 5)["p_value"] > 0.05
+
+
+def test_at_floor_absent_for_sampled_permutations() -> None:
+    """Only the exact enumeration has a meaningful floor."""
+    result = paired_permutation_test(
+        [1.0] * 25, max_exact_exponent=10, n_resamples=500
+    )
+    assert result["exact"] is False
+    assert result["at_floor"] is False
+
+
+def test_at_floor_matches_seeds_needed() -> None:
+    """seeds_needed is exactly the n at which a floor-hugging result rejects."""
+    n_min = seeds_needed(0.05)
+    assert paired_permutation_test([1.0] * n_min)["p_value"] <= 0.05
+    assert paired_permutation_test([1.0] * (n_min - 1))["p_value"] > 0.05

@@ -279,3 +279,51 @@ def test_main_rejects_a_malformed_seed_list(tmp_path: Path) -> None:
 
 def test_main_rejects_an_empty_seed_list(tmp_path: Path) -> None:
     assert agg.main([str(_sweep_dir(tmp_path)), "--seeds", ","]) == 2
+
+
+# ---------------------------------------------------------------------------
+# floor-hugging rejections must announce themselves
+# ---------------------------------------------------------------------------
+def _floor_runs() -> dict[str, dict[int, float]]:
+    """Six seeds, every paired difference the same sign -> p == 2/2**6."""
+    return {
+        "hi": {s: 0.95 + 0.001 * s for s in range(6)},
+        "lo": {s: 0.94 + 0.001 * s for s in range(6)},
+    }
+
+
+def test_report_flags_a_rejection_sitting_on_the_exact_floor() -> None:
+    report = agg.significance_report(_floor_runs())
+    perm = report["comparisons"][0]["permutation"]
+    assert perm["p_value"] == pytest.approx(0.03125)
+    assert perm["at_floor"] is True
+
+
+def test_console_output_explains_a_floor_hugging_rejection(capsys) -> None:
+    agg.print_significance(agg.significance_report(_floor_runs()))
+    out = capsys.readouterr().out
+    assert "floor" in out
+    assert "2/2^6" in out
+    assert "share a sign" in out
+
+
+def test_no_floor_note_when_the_margin_has_room(capsys) -> None:
+    # Mixed signs: p lands above the floor, so the note must not appear.
+    runs = {
+        "a": {0: 0.95, 1: 0.94, 2: 0.96, 3: 0.93, 4: 0.95, 5: 0.94},
+        "b": {0: 0.94, 1: 0.95, 2: 0.95, 3: 0.94, 4: 0.96, 5: 0.95},
+    }
+    agg.print_significance(agg.significance_report(runs))
+    out = capsys.readouterr().out
+    assert "only at the exact test's floor" not in out
+
+
+def test_no_floor_note_when_the_floor_itself_misses_alpha(capsys) -> None:
+    """At n=3 the floor is 0.25; a floor-hugging result is not a rejection."""
+    runs = {"a": {0: 0.95, 1: 0.96, 2: 0.97}, "b": {0: 0.94, 1: 0.95, 2: 0.96}}
+    report = agg.significance_report(runs)
+    assert report["comparisons"][0]["permutation"]["at_floor"] is True
+    agg.print_significance(report)
+    out = capsys.readouterr().out
+    assert "only at the exact test's floor" not in out
+    assert "cannot reach" in out  # the underpowered note fires instead

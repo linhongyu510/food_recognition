@@ -204,6 +204,25 @@ def print_significance(report: dict) -> None:
             "design, independent of the observed gaps"
         )
 
+    # A rejection sitting exactly on the floor deserves a different sentence
+    # from one with room to spare: it means every paired difference shares a
+    # sign, the most extreme arrangement n pairs can produce, so the margin
+    # cannot improve without more seeds. Printed so the caveat travels with the
+    # numbers instead of relying on whoever writes the prose to remember it.
+    on_floor = [
+        c
+        for c in comparisons
+        if c["permutation"].get("at_floor")
+        and c["permutation"]["p_value"] <= report["protocol"]["alpha"]
+    ]
+    for c in on_floor:
+        print(
+            f"note: {c['cell_a']} vs {c['cell_b']} clears alpha only at the exact "
+            f"test's floor (p={c['permutation']['p_value']:.4f} = 2/2^{len(c['seeds'])}); "
+            "all differences share a sign, so no arrangement of these seeds could "
+            "give a smaller p-value"
+        )
+
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)

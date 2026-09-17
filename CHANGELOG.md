@@ -38,27 +38,42 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- **The grid's "everything is inside noise" reading is now too coarse, and one
-  gap is confirmed real.** `b0_cbam`@380 and `b3_cbam`@380 were extended from 3 to
-  **6 seeds** (5.1 h serial), because at n=3 the two-sided exact test's p-value
-  floor is 2/2³ = 0.25 and cannot reject at any effect size. At n=6 the floor drops
-  to 0.031 and `b3_cbam`@380 over `b0_cbam`@380 clears every test: **+0.985 points**,
-  all six seeds agreeing in sign, p(t)=0.0019, exact p=0.0312, dz=+2.44, bootstrap
-  CI [+0.707, +1.288]. It also survives Holm correction across the six pairs.
-  Verdict `significant`, `power_limited: false`. The other five pairs remain
-  undecidable at n=3, including the nominal top-two `b3`@380 vs `b4`@380.
-- **Effect sizes at n=3 were inflated, as expected.** The same pair's dz fell from
-  +4.04 at n=3 to +2.44 at n=6, and both extended cells widened their spread from
-  0.15/0.30 to 0.61 points. Three seeds understates run-to-run variability; the
-  frozen three-seed table in README is now labelled as such.
-- **Epoch selection identified as a confound.** All reported accuracies are
-  best-of-30, verified uniform across all 18 runs, so the pairing is valid. But
-  the best epoch ranges from 12 to 30 and best exceeds last-epoch accuracy by
-  +0.463 points on average — larger than four of the six gaps compared. Under a
-  last-epoch rule four of six pairs change verdict or sign and `b3`@380 vs
-  `b4`@380 reverses (+0.101 → −0.404). At n=3 this destroyed the one positive
-  result; at n=6 it does not — the difference stays positive (+0.808) and still
-  rejects (p=0.0406), which is why it is the only claim stated as a finding.
+- **All four re-run Food-11 cells extended from 3 to 6 seeds** (9.6 h of training
+  across two sweeps), because at n=3 the two-sided exact test's p-value floor is
+  2/2³ = 0.25 and cannot reject at any effect size. At n=6 the floor is 0.031 and
+  four of the six pairs become decidable.
+- **The grid's "everything is inside noise" reading was a three-seed limitation,
+  not a property of the gaps.** Both 380px cells beat both B0 cells: `b4`@380 vs
+  `b0`@380 +1.035 pts (p(t)=0.0060, exact 0.0312, dz=+1.87), `b3`@380 vs `b0`@380
+  +0.985 (0.0019 / 0.0312 / +2.44), `b3`@380 vs `b0`@300 +0.884 (0.0148 / 0.0312 /
+  +1.49), and `b4`@380 vs `b0`@300 +0.934 parametrically only (0.0277 / 0.0625).
+  Resolution is the real effect in this grid.
+- **The nominal top-two comparison is settled as unsettleable, and its sign
+  reversed.** `b4`@380 vs `b3`@380 was the target of the second sweep. At six seeds
+  each it is +0.051 pts, p=0.6793, CI [-0.177, +0.227] — and B4 now leads where at
+  n=3 B3 led by +0.101. The CI is tight enough to say the true gap is small, not
+  which model is better. The earlier "three-way tie" at the top is now a two-way
+  tie, with B0@300 measurably below both.
+- **Three of the four rejections sit exactly on the exact test's floor**
+  (p=0.0312 = 2/2⁶), which happens only when every per-seed difference shares a
+  sign; one dissenting seed would push p to 0.219. Surfaced as
+  `permutation.at_floor` in the report and printed by `aggregate_seeds.py`, so the
+  caveat travels with the number rather than depending on prose.
+- **Holm correction splits the four positives**: 0.0019 and 0.0060 survive, 0.0148
+  and 0.0277 do not. Stated rather than silently applied.
+- **Effect sizes and spreads at n=3 were both misleading.** `b3`@380 vs `b0`@380's
+  dz fell from +4.04 to +2.44, and *every* cell's spread grew when seeds 3-5 landed
+  (b4_380 and b0_300 both 0.76 → 1.06; the other two 0.15/0.30 → 0.61). Three seeds
+  systematically understates run-to-run variability, so a tight SD at n=3 is not
+  evidence of stability. The frozen three-seed table in README is labelled as such.
+- **Epoch selection remains a confound but a weaker one at n=6.** All accuracies
+  are best-of-30, verified uniform across all 24 runs. Best epoch ranges 12-30 and
+  best exceeds last-epoch accuracy by +0.492 points on average, still larger than
+  the two unresolved gaps. Under a last-epoch rule three of the four positives move
+  between `significant` and `parametric only`, but **no sign flips among them** —
+  versus n=3, where four of six pairs changed verdict or sign and the single
+  positive result was destroyed. `b4`@380 vs `b0`@380 is significant under both
+  rules and after Holm: the most robust claim in the grid.
 - **Food-101's +0.41-point B4 advantage is separable, and now says why.** Paired
   image-by-image over all 25,250 validation images: 1,910 discordant, McNemar
   p=0.0184, bootstrap CI [+0.075, +0.749]. Subsampling that set shows the same
@@ -70,7 +85,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   31.2% of the canonical training set and validates on 660 images where the
   canonical split has 3,430, so no figure here is comparable with published
   Food-11 results. `docs/significance.md` states this explicitly.
-- Test suite 217 → 423; the three hardcoded counts in README updated.
+- Test suite 217 → 436; the three hardcoded counts in README updated.
 
 ### Fixed
 

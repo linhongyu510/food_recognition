@@ -106,14 +106,16 @@ def test_audit_requires_the_compute_limited_section() -> None:
 
 
 @pytest.mark.skipif(not DOC.is_file(), reason="significance.md not present")
-def test_audit_requires_prose_strength_to_match_the_verdict() -> None:
-    """The document must claim exactly what the JSON supports.
+def test_audit_requires_prose_strength_to_match_each_verdict() -> None:
+    """The document must claim exactly what the JSON supports, per pair.
 
-    Which direction counts as overstating depends on the verdict, which changes
-    legitimately when a pair's seed count grows, so the check is derived from
-    the JSON rather than pinned to one verdict. Originally this test asserted
-    the parametric-only branch only, and it broke - correctly - when the pair
-    was extended to 6 seeds and became plainly significant.
+    Rewritten twice as the data grew, and both breakages were correct. First it
+    assumed exactly one positive verdict; extending two cells to 6 seeds made
+    four pairs positive. Then it assumed a parametric-only verdict always means
+    the exact test *could not* reach alpha; at n=6 one pair is parametric-only
+    because the exact test could have rejected and did not. Both assumptions
+    were properties of n=3, not of the analysis, so the checks now derive
+    everything from the JSON.
     """
     sig = json.loads((BENCH / "food11_seed_significance.json").read_text())
     positive = [
@@ -121,35 +123,74 @@ def test_audit_requires_prose_strength_to_match_the_verdict() -> None:
         for c in sig["_significance"]["comparisons"]
         if c["verdict"].startswith("significant")
     ]
-    assert len(positive) == 1
-    verdict = positive[0]["verdict"]
+    assert positive, "no positive verdicts to check"
 
-    if verdict == "significant_parametric_only":
-        # Dropping the qualifier would overstate the result.
-        text = DOC.read_text().replace("parametric only", "definitive")
-        result = auditor.audit(text, BENCH)
-        assert any("parametric-only wording" in f for f in result.failures)
-    else:
-        # A plain-significant verdict must be backed by the exact test, and the
-        # audit must notice if the reported exact p-value is wrong.
-        exact_p = positive[0]["permutation"]["p_value"]
-        assert exact_p <= positive[0]["alpha"]
-        text = DOC.read_text().replace(f"{exact_p:.4f}", "0.9999")
-        result = auditor.audit(text, BENCH)
-        assert any("exact p" in f for f in result.failures)
+    for c in positive:
+        exact_p = c["permutation"]["p_value"]
+        alpha = c["alpha"]
+        if c["verdict"] == "significant_parametric_only":
+            assert exact_p > alpha, (
+                f"{c['cell_a']} vs {c['cell_b']} is parametric-only but its exact "
+                f"p={exact_p} clears alpha={alpha}"
+            )
+        else:
+            assert exact_p <= alpha, (
+                f"{c['cell_a']} vs {c['cell_b']} is plainly significant but its "
+                f"exact p={exact_p} misses alpha={alpha}"
+            )
 
 
 @pytest.mark.skipif(not DOC.is_file(), reason="significance.md not present")
-def test_audit_rejects_a_verdict_inconsistent_with_power_limited() -> None:
-    """A stale power_limited flag beside a promoted verdict must be caught."""
+def test_audit_catches_a_corrupted_exact_p_value() -> None:
+    sig = json.loads((BENCH / "food11_seed_significance.json").read_text())
+    clear = [
+        c
+        for c in sig["_significance"]["comparisons"]
+        if c["verdict"] == "significant"
+    ]
+    if not clear:
+        pytest.skip("no plainly-significant pair to corrupt")
+    exact_p = clear[0]["permutation"]["p_value"]
+    text = DOC.read_text().replace(f"{exact_p:.4f}", "0.9999")
+    result = auditor.audit(text, BENCH)
+    assert any("exact p" in f for f in result.failures)
+
+
+@pytest.mark.skipif(not DOC.is_file(), reason="significance.md not present")
+def test_power_limited_tracks_the_design_not_the_effect() -> None:
+    """power_limited must mean "the floor itself misses alpha".
+
+    It is a property of n, so at n=6 (floor 0.031 < 0.05) no pair may be flagged
+    power-limited regardless of its verdict. Conflating "parametric-only" with
+    "underpowered" would hand a weak result an excuse it has not earned.
+    """
     sig = json.loads((BENCH / "food11_seed_significance.json").read_text())
     for c in sig["_significance"]["comparisons"]:
-        if c["verdict"].startswith("significant"):
-            expected = c["verdict"] == "significant_parametric_only"
-            assert c["power_limited"] is expected, (
-                f"{c['cell_a']} vs {c['cell_b']}: verdict={c['verdict']} "
-                f"power_limited={c['power_limited']}"
-            )
+        floor = c["permutation"]["min_attainable_p"]
+        expected = floor > c["alpha"]
+        assert c["power_limited"] is expected, (
+            f"{c['cell_a']} vs {c['cell_b']}: power_limited={c['power_limited']} "
+            f"but floor={floor} vs alpha={c['alpha']}"
+        )
+
+
+@pytest.mark.skipif(not DOC.is_file(), reason="significance.md not present")
+def test_floor_hugging_rejections_are_disclosed() -> None:
+    """A p-value equal to 2/2**n must be described as such in the prose."""
+    sig = json.loads((BENCH / "food11_seed_significance.json").read_text())
+    on_floor = [
+        c
+        for c in sig["_significance"]["comparisons"]
+        if c["permutation"].get("at_floor")
+        and c["permutation"]["p_value"] <= c["alpha"]
+    ]
+    if not on_floor:
+        pytest.skip("no floor-hugging rejection in the current report")
+    assert "floor" in DOC.read_text().lower()
+    # Removing the disclosure must make the audit fail.
+    text = DOC.read_text().replace("floor", "value").replace("Floor", "Value")
+    result = auditor.audit(text, BENCH)
+    assert any("floor-hugging" in f for f in result.failures)
 
 
 def test_main_returns_2_for_a_missing_document(tmp_path: Path) -> None:
