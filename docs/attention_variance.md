@@ -12,6 +12,20 @@ were done and which were not.
   unavailable
 - **Date:** 2026-09-13
 - **Machine-readable audit:** [`benchmarks/attention_claims_audit.json`](benchmarks/attention_claims_audit.json)
+- **Wider corpus:** [`benchmarks/attention_corpus_17.json`](benchmarks/attention_corpus_17.json),
+  [statistics](benchmarks/attention_corpus_17_stats.json)
+
+> **On the automated guard-rail.** `scripts/audit_attention_doc.py` re-derives
+> every number here from its source and refuses prose that asserts published
+> gains are noise. It is a **checking aid, not a mechanical guarantee**. The
+> banned-claim detector matches normalised sentence patterns, so a sufficiently
+> indirect phrasing, a claim spread across several sentences, or one made in a
+> figure or a file the script does not read, can still get through. It is
+> calibrated to catch careless paraphrase, not to be adversarially complete.
+> Passing it is necessary, never sufficient — the separation of *what this
+> project measured* from *what other people published* is a claim the authors
+> have to keep honestly, and the script only makes lapses more likely to be
+> noticed.
 
 ---
 
@@ -39,15 +53,15 @@ that *was* run, on this project's own infrastructure.
 
 ## 2. Verified: the artefact audit
 
-Seven works were triaged. Availability was checked on **independent channels** —
-the publisher/arXiv landing page, the GitHub REST search API, the HuggingFace
-model API, and Google Scholar author profiles — rather than inferred from
-abstracts. Full records in
+Seven works were triaged in depth. Availability was checked on **independent
+channels** — the publisher/arXiv landing page, the GitHub REST search API, the
+HuggingFace model API, and Google Scholar author profiles — rather than inferred
+from abstracts. Full records in
 [`benchmarks/attention_claims_audit.json`](benchmarks/attention_claims_audit.json).
 
-| Paper | Claim | Code | Weights | Data | Reports seed variance |
+| Paper | Claim | Code | Weights | Data | Reports repeated runs |
 | --- | --- | --- | --- | --- | --- |
-| Rokhva & Teimourpour 2025 (EffNetB7+CBAM, Food-11) | 96.40% | **yes** | no | yes | **no** |
+| Rokhva & Teimourpour 2025 (EffNetB7+CBAM, Food-11) | 96.40% | **yes** | no | yes | **yes, 5 runs** |
 | Liu et al. 2024 CBiAFormer (TIP) | Food-101 SOTA-adjacent | **yes** | claimed | partial | **no** |
 | Deng et al. 2024 MAMS-net (CMC) | 91.12% Food-101, +1.04 | no | no | partial | **no** |
 | Xu et al. 2021 (CBAM+MobileNetV2/VGG16/ResNet50) | 87.33% | no | no | no | **no** |
@@ -55,7 +69,7 @@ abstracts. Full records in
 | Singh & Susan 2023 (Xception) | 84.54% Food-101 | no | no | yes | **no** |
 | Sayudha & Sthevanie 2025 (ResNet50+CBAM) | 94.42% | no | no | no | **no** |
 
-**2 of 7 publish code. 0 of 7 publish weights. 0 of 7 report seed variance.**
+**2 of 7 publish code. 0 of 7 publish weights. 1 of 7 reports repeated runs.**
 
 ### 2.1 The strongest single finding
 
@@ -64,24 +78,87 @@ dataset family, same backbone family, same attention module. Their code exists
 but is **not linked from either the arXiv page or the journal page** — it was
 found through a GitHub search on the author's surname.
 
-Reading it establishes something stronger than "variance is not reported":
+Two facts about this paper are independent, and an earlier version of this
+document conflated them. Both are stated here separately.
 
-> In 1,645 lines of the exported training script, `grep -ci seed` returns **0**.
-> There is no `torch.manual_seed`, no NumPy seed, no `cudnn.deterministic`, and
-> `DataLoader(shuffle=True)` on all three splits.
+**What the code shows.** In 1,645 lines of the exported training script,
+`grep -ci seed` returns **0**. There is no `torch.manual_seed`, no NumPy seed, no
+`cudnn.deterministic`, and `DataLoader(shuffle=True)` on all three splits.
 
-So the published 96.40% is a single draw from an uncontrolled distribution, and
-the code as released cannot reproduce its own headline number exactly, let alone
-bound its spread. That is verifiable today, from artefacts, at zero GPU cost.
+**What the paper reports.** Five runs, from scratch, with per-run numbers:
 
-Two further caveats found by reading rather than assuming:
+> "the model was trained, optimized, and then executed on the test data 5 times,
+> each time all parameters were initialized from scratch" (§2.10), yielding
+> **96.24%, 96.44%, 96.51%, 96.42%, and 96.38%** (§3). The headline 96.40% is the
+> **mean of five** runs, and §4.2 gives best and worst as 96.51% and 96.24% — a
+> spread of **0.27** pts.
 
-- Their accuracy is `torchmetrics.Accuracy(average="macro")` — macro-averaged
-  recall on an **imbalanced** 11-class split, not micro top-1. It is not
-  directly comparable to what this project reports.
-- Their eval split is 3,347 images, so one image is worth 0.0299 pts there.
+So the honest reading is narrower than "no one repeats runs", and more specific:
+the authors did repeat, and their spread is small, but because no seed is set
+those five values are five uncontrolled draws that cannot be reproduced
+individually. A prior draft of this audit recorded this paper as reporting no
+variance, having inferred that from the `grep` result. **That inference was
+wrong**: absence of seed control in the code says nothing about whether the paper
+repeated runs. The corrected record, and the reasoning, are kept in
+`correction_note` in the JSON.
 
-### 2.2 A resolution audit that needs no retraining
+**The gap that remains, and it is the decisive one.** This paper reports **no
+no-CBAM ablation** — Table 1 is the EfficientNet family on ImageNet quoted from
+the original paper, Table 2 compares against other Food-11 work. There is no
+B7-versus-B7+CBAM row anywhere. So the paper publishes no *isolated attention
+gain*, and the question "is their attention gain inside seed noise?" has no
+published quantity to attach to. Answering it would mean running the no-CBAM arm
+ourselves — doing the experiment the authors omitted, which is not the same thing
+as reproducing a claim they made.
+
+One further caveat found by reading rather than assuming: the exported script
+computes accuracy with `torchmetrics.Accuracy(average="macro")` — macro-averaged
+recall on an **imbalanced** 11-class split — so it is not directly comparable to
+the micro/top-1 this project reports. This is a separate point from how the
+96.40% was aggregated across runs, and should not be confused with it. Their eval
+split is 3,347 images, so one image is worth 0.0299 pts there.
+
+### 2.2 A wider bibliometric screen: where the pattern actually is
+
+The seven records above are a deep artefact audit. A wider and shallower screen
+was also run over **22** works, coding each from body tables rather than
+abstracts, and is stored alongside them:
+
+- Corpus: [`benchmarks/attention_corpus_17.json`](benchmarks/attention_corpus_17.json)
+  ([CSV](benchmarks/attention_corpus_17.csv))
+- Statistics: [`benchmarks/attention_corpus_17_stats.json`](benchmarks/attention_corpus_17_stats.json)
+- Regenerate: `python scripts/attention_corpus_stats.py`
+
+Funnel: 22 screened → 3 excluded (outside the time window, or no attention
+module) → 2 unverifiable (full text unobtainable) → **K = 17 included**.
+
+| Reported in the paper | k / 17 | Wilson 95% CI |
+| --- | --- | --- |
+| Repeated runs / seed variance | 1 / 17 | 1.0 – 27.0% |
+| An isolated no-attention ablation | 16 / 17 | 73.0 – 99.0% |
+| **Both** | **0 of 17** | **0.0 – 18.4%** |
+| Any statistical test | 0 / 17 | 0.0 – 18.4% |
+
+The structural result is the last two rows. Reporting run variance and reporting
+an isolated attention gain **never co-occur** in this corpus. The one paper that
+reports variance (Rokhva & Teimourpour) reports no ablation; all sixteen that
+report an ablation report no variance. The gap is therefore not "nobody repeats
+runs" but **"nobody who reports a gain also reports its variance"** — which is
+what makes the significance of those gains undecidable from the literature
+itself, without anyone needing to retrain anything.
+
+**Scope.** These two sets overlap but the seven are **not a strict subset** of
+the seventeen: they were built under different inclusion rules. Four of the seven
+(Rokhva, Xu, Deng, Sayudha) are included in K=17; BSAM is present but
+unverifiable; Singh & Susan is excluded from the corpus for having no attention
+module at all; CBiAFormer was never screened against the corpus criteria. The
+exact per-paper mapping is in `corpus_relationship` in the audit JSON.
+
+**Not claimed.** That 0 of 17 co-occurrence means the published gains are wrong,
+or that they are small. It means the literature does not report enough to tell,
+and that K=17 is a small sample whose intervals are correspondingly wide.
+
+### 2.3 A resolution audit that needs no retraining
 
 Deng et al. publish no code, but they publish enough numbers to be checked
 against measurement resolution. Their Food-101 test split is 25,250 images, so
@@ -231,9 +308,10 @@ Per paper, the blocker is specific:
 *NAS Evaluation is Frustratingly Hard* (arXiv:1912.12522), arXiv:1902.08142, and
 *Deep Reinforcement Learning that Matters* (arXiv:1709.06560). Any novelty here
 is confined to the narrow intersection: *attention-module gains specifically in
-food recognition*. §2 establishes the gap exists (0 of 7 report variance) and
-that at least one flagship result has no seed control at all. Closing it requires
-§4's compute.
+food recognition*. §2 establishes what the gap actually is — not that nobody
+repeats runs, but that **0 of 17** papers report repeated runs and an isolated
+attention ablation together, so the significance of the published gains cannot be
+decided from the literature. Closing it requires §4's compute.
 
 ---
 
@@ -241,18 +319,33 @@ that at least one flagship result has no seed control at all. Closing it require
 
 **Verified in this session:**
 
-1. 7 works triaged across independent channels: 2 publish code, 0 publish
-   weights, **0 report seed variance**.
-2. The closest analogue (Rokhva & Teimourpour, 96.40%) sets **no random seed
-   anywhere** in 1,645 lines — its headline is one uncontrolled draw.
-3. Deng et al. select an attention placement on a **0.02 pt = 5-image** margin
+1. 7 works triaged in depth across independent channels: 2 publish code, 0
+   publish weights, **1 of 7 reports repeated runs**.
+2. The closest analogue (Rokhva & Teimourpour, 96.40%) reports **five**
+   from-scratch runs — 96.24 / 96.44 / 96.51 / 96.42 / 96.38, spread **0.27**
+   pts — while setting **no random seed anywhere** in 1,645 lines. Those are
+   compatible: the runs were repeated, but each is an uncontrolled draw. The
+   paper reports **no no-CBAM ablation**, so it publishes no isolated attention
+   gain that could be tested against seed noise.
+3. A wider screen of 22 works (**K = 17** after exclusions) finds that reporting
+   run variance and reporting an isolated attention ablation **never co-occur**:
+   **0 of 17**, Wilson 95% CI 0.0–18.4%. One paper reports variance without an
+   ablation; sixteen report an ablation without variance.
+4. Deng et al. select an attention placement on a **0.02 pt = 5-image** margin
    from single runs; their top four placements span 7.6 images, versus this
    project's measured 0.15–0.76 pt seed spread.
-4. A paired CBAM-vs-baseline experiment at 3 shared seeds on controlled
+5. A paired CBAM-vs-baseline experiment at 3 shared seeds on controlled
    infrastructure: **+0.657 pts, CI [+0.455, +0.758], p = 0.0229, dz = +3.75**,
    consistent across all three seeds — but worth only **4.3 images of 660**, and
    flagged `power_limited` because the exact test's floor at n=3 is 0.25. Seed 0
    reproduced the existing grid cell bit-exactly.
+
+**Corrected in this session:** this document previously stated that 0 of 7 papers
+report seed variance, inferring it from `grep -ci seed` returning 0 over Rokhva &
+Teimourpour's code. Absence of seed control in code does not imply absence of
+repeated runs in the paper; reading the PDF refuted it. The speculation that
+their 96.40% was a macro-average across classes is likewise refuted — it is the
+**mean of five** runs.
 
 **Not done, with measured costs:** retraining any published work. The most
 tractable is 31.6 h for three seeds of one paper; the rest are blocked on absent

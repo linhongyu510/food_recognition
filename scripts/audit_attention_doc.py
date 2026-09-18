@@ -18,10 +18,147 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
 BENCH = Path("docs/benchmarks")
+
+# --- banned-claim detection -------------------------------------------------
+# The claim this project must never make is "the *published* gains are noise".
+# An earlier version of this audit tested one exact string, which meant any
+# paraphrase - "Published attention gains are noise." - sailed through all
+# checks. The detector below works on normalised sentences instead.
+#
+# It is deliberately two-sided. The document legitimately *denies* this claim
+# in several places, and those denials must keep passing:
+#
+#   - the title, "Are published attention gains ... larger than seed noise?"
+#   - the Q2 column head, "Does each claimed gain fall inside its own seed noise?"
+#   - "**Not claimed.** That the headline +1.04 pts (263 images) is noise."
+#   - "It does **not** license the claim that published CBAM gains are within
+#     noise." (docs/attention_variance.md)
+#
+# So a sentence is flagged only when it names published work, names a gain, and
+# asserts that gain is noise *without* a negation or question guarding it.
+
+_SUBJECT = re.compile(
+    r"\b(published|prior work|previous work|other people'?s|others'|their|theirs|"
+    r"reported|literature|existing work|these papers|those papers)\b"
+)
+_GAIN = re.compile(r"\b(gain|gains|improvement|improvements|effect|effects|result|results)\b")
+
+# Predicates that assert "this is noise" / "this is not significant".
+# "larger than seed noise" is deliberately NOT here: comparing against noise is
+# a legitimate thing to say.
+_PREDICATES = [
+    re.compile(
+        r"\b(are|is|were|was)\s+(just\s+|merely\s+|only\s+|all\s+|entirely\s+|purely\s+|"
+        r"simply\s+|likely\s+|probably\s+|mostly\s+|largely\s+)*(seed\s+|random\s+)?noise\b"
+    ),
+    re.compile(
+        r"\b(fall|falls|fell|falling|lie|lies|lay|sit|sits|sat|land|lands|remain|remains)\s+"
+        r"(with)?in(side)?\s+(the\s+)?(their\s+|its\s+|his\s+|her\s+|own\s+)*"
+        r"(seed\s+|random\s+)?noise\b"
+    ),
+    re.compile(
+        r"\b(are|is|were|was)\s+(well\s+|entirely\s+|comfortably\s+)?"
+        r"(with)?in(side)?\s+(the\s+)?(their\s+|its\s+|own\s+)*(seed\s+|random\s+)?noise\b"
+    ),
+    re.compile(r"\b(with)?in(side)?\s+(the\s+)?(seed\s+|random\s+)?noise\b"),
+    re.compile(r"\b(are|is|were|was)\s+not\s+(statistically\s+)?significant\b"),
+    re.compile(r"\b(statistically\s+)?insignificant\b"),
+    re.compile(r"\b(explained|explainable)\s+by\s+(seed\s+|random\s+)?noise\b"),
+    re.compile(r"\battributable\s+to\s+(seed\s+|random\s+)?noise\b"),
+    re.compile(r"\bindistinguishable\s+from\s+(seed\s+|random\s+)?noise\b"),
+    re.compile(r"\bno\s+(better|different|bigger|larger)\s+than\s+(seed\s+|random\s+)?noise\b"),
+]
+
+# Cues that mean the sentence is denying, questioning or hedging the claim
+# rather than making it.
+_NEGATION = re.compile(
+    r"\b(not|n't|never|cannot|can't|without|neither|nor|unproven|unverified|"
+    r"whether|unclear|would|could|cannot be|do not|does not|did not|"
+    r"no evidence|not claimed|not licensed|refuse[sd]?|refut\w+|avoid\w*|"
+    r"must never|never assert|forbid\w*|ban(?:s|ned)?|reject\w*|"
+    r"disallow\w*|prohibit\w*)\b"
+)
+
+
+def _normalise(text: str) -> str:
+    """Lower-case, drop markdown emphasis and blockquote markers, collapse space."""
+    text = re.sub(r"[*_`]+", "", text)
+    # "> " continuation markers inside a hard-wrapped blockquote are not words.
+    text = re.sub(r"(?:^|\s)>\s+", " ", text)
+    text = text.replace("\u2019", "'").replace("\u2014", " ").replace("\u2013", " ")
+    return " ".join(text.split()).lower()
+
+
+def find_banned_noise_claims(text: str) -> list[str]:
+    """Return sentences that assert published gains are noise.
+
+    Splits on sentence boundaries. A negation only counts as a denial when it
+    appears *before* the offending predicate ("does **not** license the claim
+    that published gains are within noise"), because a negation after it can
+    belong to a different clause ("are noise, not signal") and must not excuse
+    the assertion.
+    """
+    flat = " ".join(text.split())
+    # Split on . ! ? and on markdown table cell / list boundaries, keeping it
+    # simple: over-splitting only makes the check stricter about context, and
+    # the lookback below restores the context that matters.
+    raw = re.split(r"(?<=[.!?])\s+|\n{2,}|\|", flat)
+    # A heading has no terminating period, so it otherwise glues itself to the
+    # first sentence of its section. "What this experiment does and does not
+    # license" would then donate its "not" to that sentence and excuse it.
+    # List bullets and blockquote markers are split for the same reason: they
+    # begin a new statement without ending the previous one.
+    _BLOCK = r"#{1,6}\s+|^\s*[->*]\s+|\s+[->*]\s+\*\*"
+    raw = [part for chunk in raw for part in re.split(_BLOCK, chunk)]
+    sentences = [s for s in (r.strip() for r in raw) if s]
+
+    offenders: list[str] = []
+    for i, sentence in enumerate(sentences):
+        norm = _normalise(sentence)
+        if not (_SUBJECT.search(norm) and _GAIN.search(norm)):
+            continue
+        hit = next((p for p in _PREDICATES if p.search(norm)), None)
+        if hit is None:
+            continue
+        # A question is asking, not asserting. This covers both a sentence that
+        # ends in "?" and a quoted question embedded in a declarative sentence,
+        # as in: the question "is their gain inside seed noise?" has no
+        # published quantity to attach to.
+        if sentence.rstrip().endswith("?"):
+            continue
+        quoted_questions = re.findall(r'"[^"]*\?"|\u201c[^\u201d]*\?\u201d', sentence)
+        if quoted_questions:
+            stripped = sentence
+            for q in quoted_questions:
+                stripped = stripped.replace(q, " ")
+            if not any(p.search(_normalise(stripped)) for p in _PREDICATES):
+                continue
+        # Only a negation that precedes the predicate is a denial of it, and
+        # only within the same clause. An earlier clause can carry an unrelated
+        # "not" - as in '... is / is not separable from seed noise at n=3."
+        # This shows published gains are within noise.' - which must not excuse
+        # the assertion that follows it.
+        match = hit.search(norm)
+        assert match is not None
+        preceding = norm[: match.start()]
+        _CLAUSE = r'[;:."]|\bthis shows\b|\bthis means\b|\bso\b|\btherefore\b'
+        clause = re.split(_CLAUSE, preceding)[-1]
+        if _NEGATION.search(clause):
+            continue
+        # A short lead-in label carries the denial for the next sentence, as in
+        # "**Not claimed.** That the headline ... is noise." The length cap
+        # keeps an unrelated neighbouring sentence that merely contains "not"
+        # from excusing a real assertion.
+        previous = _normalise(sentences[i - 1]) if i else ""
+        if len(previous) <= 40 and _NEGATION.search(previous):
+            continue
+        offenders.append(sentence.strip())
+    return offenders
 
 
 class Auditor:
@@ -64,6 +201,14 @@ class Auditor:
         else:
             self.failures.append(f"{label}: {needle!r} must not appear")
 
+    def check_no_banned_claim(self, label: str) -> None:
+        offenders = find_banned_noise_claims(self.text)
+        if not offenders:
+            self.passed += 1
+        else:
+            joined = "; ".join(repr(o) for o in offenders[:3])
+            self.failures.append(f"{label}: asserts published gains are noise: {joined}")
+
 
 def audit(doc_text: str, bench: Path = BENCH) -> Auditor:
     a = Auditor(doc_text)
@@ -87,7 +232,15 @@ def audit(doc_text: str, bench: Path = BENCH) -> Auditor:
         "audit JSON self-consistent: paper count",
         len(papers) == summary["papers_triaged"],
     )
-    a.check_true("no paper reports seed variance", not variance_yes)
+    # Rokhva & Teimourpour DO report five from-scratch runs; an earlier version
+    # of this audit asserted that no paper reports variance, having inferred it
+    # from `grep -ci seed` over their code. The count is now checked against the
+    # records rather than assumed to be zero.
+    a.check_true(
+        "audit JSON self-consistent: variance count",
+        len(variance_yes) == summary["papers_reporting_seed_variance"],
+        f"{len(variance_yes)} vs {summary['papers_reporting_seed_variance']}",
+    )
     a.check_true(
         "no paper was retrained",
         summary["papers_actually_retrained_in_this_session"] == 0,
@@ -99,11 +252,47 @@ def audit(doc_text: str, bench: Path = BENCH) -> Auditor:
         or a.has(f"**{len(code_yes)} of {len(papers)} publish code"),
     )
     a.check_true(
-        "zero-variance count stated",
-        a.has(f"0 of {len(papers)} report seed variance"),
+        "variance-reporting count stated",
+        a.has(f"{len(variance_yes)} of {len(papers)} report") or a.has("1 of 7 reports"),
     )
 
-    # --- Rokhva: the seed-control finding, which is the strongest claim ---
+    # --- the 17-paper corpus: the headline K, and the structural finding ---
+    corpus_stats_path = bench / "attention_corpus_17_stats.json"
+    if corpus_stats_path.is_file():
+        cs = json.loads(corpus_stats_path.read_text())
+        k = cs["funnel"]["included_K"]
+        cross = cs["crosstab_2x2_variance_x_ablation"]
+        a.check_true("corpus K is 17", k == 17, f"K={k}")
+        a.check_true(
+            "corpus 2x2 sums to K",
+            cross["both"]["n"]
+            + cross["variance_only"]["n"]
+            + cross["ablation_only"]["n"]
+            + cross["neither"]["n"]
+            == cross["n_total"],
+        )
+        a.check_int("corpus K stated in prose", k)
+        a.check_true(
+            "corpus co-occurrence count stated",
+            a.has(f"{cross['both']['n']} of {k}"),
+        )
+        both_ci = cs["proportions_of_K"]["BOTH_variance_and_ablation"]
+        a.check_true(
+            "corpus Wilson upper bound stated",
+            a.has(f"{both_ci['hi'] * 100:.1f}"),
+        )
+        a.check_true(
+            "corpus funnel stated",
+            a.has(str(cs["funnel"]["total_screened"])),
+        )
+        a.check_true(
+            "corpus is not described as a strict superset of the 7",
+            a.has("not a strict subset") or a.has("not a subset"),
+        )
+
+    # --- Rokhva: seed control in the code, and repeated runs in the paper ---
+    # These are independent facts. Conflating them is what produced the earlier
+    # error, so both are now asserted separately.
     rokhva = next(p for p in papers if p["id"] == "rokhva2025")
     a.check_true(
         "rokhva seed control recorded as absent",
@@ -112,9 +301,36 @@ def audit(doc_text: str, bench: Path = BENCH) -> Auditor:
     a.check("rokhva line count", "1,645")
     a.check("rokhva grep result", "returns **0**")
     a.check("rokhva claim", "96.40%")
+
+    mrp = rokhva["multi_run_protocol"]
+    a.check_true("rokhva multi-run recorded", mrp["reported"] is True)
+    a.check_true("rokhva n_runs is 5", mrp["n_runs"] == 5)
     a.check_true(
-        "rokhva macro-average caveat present",
-        a.has("macro") and a.has("imbalanced"),
+        "rokhva per-run values recomputed to the reported mean",
+        abs(sum(mrp["per_run_accuracy_percent"]) / 5 - mrp["mean_percent"]) < 0.005,
+    )
+    a.check_true(
+        "rokhva range recomputes",
+        abs(
+            (max(mrp["per_run_accuracy_percent"]) - min(mrp["per_run_accuracy_percent"]))
+            - mrp["range_points"]
+        )
+        < 1e-9,
+    )
+    for value in mrp["per_run_accuracy_percent"]:
+        a.check_true(f"rokhva per-run value {value} stated", a.has(f"{value:.2f}"))
+    a.check_true("rokhva run range stated", a.has(f"{mrp['range_points']:.2f}"))
+    a.check_true(
+        "rokhva no-ablation finding retained",
+        rokhva["attention_ablation"]["isolated_no_cbam_control"] is False,
+    )
+    a.check_true(
+        "rokhva no-ablation stated in prose",
+        a.has("no-CBAM") or a.has("no CBAM ablation") or a.has("isolates no attention gain"),
+    )
+    a.check_true(
+        "macro-average speculation corrected, not repeated",
+        a.has("mean of five") or a.has("mean of 5"),
     )
     ppi_rokhva = rokhva["measurement_resolution"]["points_per_image"]
     a.check("rokhva eval resolution", f"{ppi_rokhva:.4f}")
@@ -234,10 +450,8 @@ def audit(doc_text: str, bench: Path = BENCH) -> Auditor:
         )
 
     # --- claim hygiene: the separation this project insists on ---
-    a.check_absent(
-        "must not assert published gains are noise",
-        "published CBAM gains are noise.",
-    )
+    # Pattern-based, not a single exact string: see find_banned_noise_claims.
+    a.check_no_banned_claim("must not assert published gains are noise")
     a.check_true(
         "states novelty is already published elsewhere",
         a.has("1912.12522") and a.has("1709.06560"),

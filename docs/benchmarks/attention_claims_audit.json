@@ -37,13 +37,13 @@
         "obtainable": true,
         "notes": "Kaggle Food-11, the canonical 16,643-image release, split by the authors 9,866 train / 3,430 valid / 3,347 eval. IMPORTANT: this project's own cached Food-11 is NOT that release - it is the NTU ML2021-HW3 semi-supervised re-split with 3,080 labelled training images and a 660-image validation split (see docs/significance.md section 2). Reproducing Rokhva et al. would therefore require downloading the canonical release separately; this project's existing runs are not comparable to theirs, and no number from this project may be quoted against their 96.40%."
       },
-      "seed_variance_reported": false,
+      "seed_variance_reported": true,
       "seed_control_in_code": {
         "any_seed_set": false,
         "evidence": "grep -ci 'seed' over the 1,645-line exported script returns 0. No torch.manual_seed, no numpy seed, no cudnn.deterministic. DataLoader(shuffle=True) on all three splits.",
         "consequence": "The published 96.40% is one draw from an uncontrolled distribution, and the code as published cannot reproduce its own number exactly, let alone quantify its spread. This is the specific gap that makes a variance audit meaningful rather than redundant."
       },
-      "reported_metric_caveat": "Accuracy is computed with torchmetrics Accuracy(task='multiclass', average='macro'), i.e. macro-averaged recall, on an imbalanced 11-class split. It is therefore not directly comparable to the micro/top-1 accuracy this project reports, and the comparison would have to be re-derived rather than quoted.",
+      "reported_metric_caveat": "The headline 96.40% is the MEAN OF FIVE FROM-SCRATCH RUNS (section 3), not a per-class average of a single run. An earlier reading of this project speculated that 96.40% might be torchmetrics Accuracy(task='multiclass', average='macro') aggregated across the 11 classes; the PDF refutes that reading and it should not be repeated. The exported script does use macro averaging, so macro-vs-micro remains a real comparability caveat against this project's micro/top-1 figures on an imbalanced split - but it is a separate point from how the 96.40% was aggregated over runs.",
       "measurement_resolution": {
         "eval_set_images": 3347,
         "points_per_image": 0.029877502240812672,
@@ -57,7 +57,33 @@
         "hours_for_3_seeds": 31.6,
         "verdict": "feasible in principle, not affordable within this session"
       },
-      "status": "NOT REPRODUCED - code located and read, cost measured, training not run"
+      "status": "NOT REPRODUCED - code located and read, cost measured, training not run",
+      "multi_run_protocol": {
+        "reported": true,
+        "n_runs": 5,
+        "form": "per_run_values",
+        "per_run_accuracy_percent": [
+          96.24,
+          96.44,
+          96.51,
+          96.42,
+          96.38
+        ],
+        "mean_percent": 96.4,
+        "best_percent": 96.51,
+        "worst_percent": 96.24,
+        "range_points": 0.27,
+        "quote_methods": "Section 2.10: 'the model was trained, optimized, and then executed on the test data 5 times, each time all parameters were initialized from scratch, and the mean performance from these runs was reported, providing a generalized result that improves robustness similar to 5-fold cross-validation (Kohavi, 1995).'",
+        "quote_results": "Section 3: 'The five optimal evaluation accuracies obtained were 96.24%, 96.44%, 96.51%, 96.42%, and 96.38%. Based on this, the average reported accuracy of our proposed method is 96.40%.'",
+        "quote_discussion": "Section 4.2: 'The best and worst accuracies, 96.51% and 96.24%, respectively, being close to the average of 96.40%.'",
+        "source": "arXiv:2410.02304 PDF, full text read"
+      },
+      "correction_note": "This record previously coded seed_variance_reported=false on the strength of `grep -ci seed` returning 0 over the authors' exported script. That inference was wrong, and the error is worth keeping on the record: absence of seed control IN THE CODE does not imply absence of repeated runs IN THE PAPER. The two are independent facts and were conflated. The paper reports five from-scratch runs with per-run accuracies; the code still sets no seed. Both statements are true simultaneously - the runs were repeated, but each was an uncontrolled draw, so the five values cannot be reproduced individually. Artefact-level greps are evidence about artefacts only; claims about what a paper reports require reading it.",
+      "attention_ablation": {
+        "isolated_no_cbam_control": false,
+        "evidence": "Full text of arXiv:2410.02304 contains no B7-vs-B7+CBAM comparison. Table 1 is the EfficientNet family on ImageNet, quoted from the original EfficientNet paper rather than run here; Table 2 compares against other Food-11 papers. No 'without CBAM', 'w/o' or ablation section appears.",
+        "consequence": "No isolated attention gain exists in this paper, so there is no published gain figure here to test against seed noise. Obtaining one would mean running the no-CBAM arm ourselves, which is doing the experiment the authors omitted, not reproducing a claim they made. This conclusion is UNCHANGED by the multi-run correction above."
+      }
     },
     {
       "id": "deng2024",
@@ -238,10 +264,59 @@
       "liu2024_cbiaformer"
     ],
     "weights_publicly_available": 0,
-    "papers_reporting_seed_variance": 0,
+    "papers_reporting_seed_variance": 1,
     "papers_with_verified_absence_of_seed_control_in_code": 1,
     "papers_actually_retrained_in_this_session": 0,
-    "headline_finding": "Across all 7 triaged papers, none reports seed variance for its claimed attention gain. Of the 2 that publish code, the one closest to this project (Rokhva & Teimourpour) sets no random seed anywhere in 1,645 lines, so its 96.40% is a single uncontrolled draw. This establishes that the gap identified in the retrieval is real and verifiable from artefacts, without yet establishing how large the seed noise in those specific papers is - that requires the retraining that this hardware cannot afford.",
-    "honest_limitation": "Verifying that no one reports variance is cheap and is now done. Measuring whether each claimed gain falls inside its own seed noise is expensive and is NOT done: it needs 31.6 h for the single most-comparable paper alone, and the other five either publish no code or no data. The substitute evidence offered here is (a) a resolution audit of Deng et al.'s published ablation tables, which needs no retraining, and (b) a paired CBAM-vs-baseline experiment on this project's own infrastructure, reported separately in docs/benchmarks/food11_cbam_ablation.json."
+    "headline_finding": "Of the 7 papers triaged here, exactly one (Rokhva & Teimourpour) reports repeated runs: five from-scratch runs with per-run accuracies 96.24/96.44/96.51/96.42/96.38, range 0.27 pts. That same paper reports NO no-CBAM ablation, so it publishes no isolated attention gain to test. The other 6 report neither repeated runs nor per-run values. In the wider 17-paper corpus (docs/benchmarks/attention_corpus_17.json) the pattern is structural: reporting run variance and reporting an isolated attention ablation never co-occur (0 of 17, Wilson 95% CI [0.0%, 18.4%]). The reproducibility gap is therefore not 'nobody repeats runs' but 'nobody who reports a gain also reports its variance'.",
+    "honest_limitation": "Verifying what each paper reports is cheap and is now done. Measuring whether each claimed gain falls inside its own seed noise is expensive and is NOT done: it needs 31.6 h for the single most-comparable paper alone, and most of the others publish no code or no data. Note also that for Rokhva & Teimourpour the question is not merely unaffordable but ill-posed, because the paper isolates no attention gain in the first place. The substitute evidence is (a) a resolution audit of Deng et al.'s published ablation tables, needing no retraining, (b) a paired CBAM-vs-baseline experiment on this project's own infrastructure (docs/benchmarks/food11_cbam_ablation.json), and (c) the 17-paper bibliometric corpus.",
+    "papers_reporting_seed_variance_ids": [
+      "rokhva2025"
+    ]
+  },
+  "corpus_relationship": {
+    "wider_corpus": "docs/benchmarks/attention_corpus_17.json",
+    "wider_corpus_stats": "docs/benchmarks/attention_corpus_17_stats.json",
+    "regenerate": "python scripts/attention_corpus_stats.py",
+    "headline_K": 17,
+    "note": "These 7 records are the deep artefact audit: code located and read, weights probed, reproduction cost measured on this machine. The 17-paper corpus is the shallower but wider bibliometric screen. THE 7 ARE NOT A STRICT SUBSET OF THE 17 - the two were built under different inclusion rules and the overlap is partial. The mapping below is exact.",
+    "mapping": {
+      "rokhva2025": {
+        "corpus_id": "P01",
+        "status": "included"
+      },
+      "xu2021": {
+        "corpus_id": "P02",
+        "status": "included"
+      },
+      "deng2024": {
+        "corpus_id": "P03",
+        "status": "included"
+      },
+      "sayudha2025": {
+        "corpus_id": "P10",
+        "status": "included"
+      },
+      "bsam2025": {
+        "corpus_id": "P21",
+        "status": "unverifiable",
+        "reason": "full text not obtainable, so the ablation field could not be coded from body tables; excluded from K denominators"
+      },
+      "singh2023": {
+        "corpus_id": "P19",
+        "status": "excluded",
+        "reason": "no attention module - a pretrained-backbone comparison. It was triaged here before that was established, and is excluded from the corpus under criterion E1"
+      },
+      "liu2024_cbiaformer": {
+        "corpus_id": null,
+        "status": "not_screened",
+        "reason": "surfaced by the artefact audit's code-availability search, not by the corpus queries; never screened against the corpus inclusion criteria"
+      }
+    },
+    "overlap_counts": {
+      "of_7_included_in_K17": 4,
+      "unverifiable": 1,
+      "excluded": 1,
+      "not_screened": 1
+    }
   }
 }
